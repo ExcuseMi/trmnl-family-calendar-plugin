@@ -1,0 +1,163 @@
+---
+strategy: polling
+no_screen_padding: 'yes'
+dark_mode: 'no'
+static_data: ''
+polling_verb: get
+framework_version: 3.3.1
+serverless_language: node
+polling_url: ''
+polling_headers: ''
+polling_body: ''
+id: 365548
+oauth_enabled: 'false'
+oauth_pkce_enabled: 'no'
+oauth_authorize_url: ''
+oauth_token_url: ''
+oauth_scopes: ''
+oauth_scope_separator: ''
+oauth_refresh_url: ''
+oauth_auth_params: ''
+oauth_token_headers: ''
+oauth_token_site: ''
+oauth_token_params: ''
+oauth_token_request_auth_method: ''
+oauth_body_format: ''
+oauth_token_response_metadata: ''
+oauth_authorization_method: ''
+oauth_refresh_params: ''
+oauth_token_field_name: ''
+oauth_expiry_field_name: ''
+oauth_expiry_strategy: ''
+oauth_fixed_expiry_ms: ''
+custom_fields:
+- keyname: author_info
+  name: About This Plugin
+  field_type: author_bio
+  description: A smart-scaling agenda from any ICS calendar feed. Combine multiple calendars, each in its own color, with sunrise/sunset and daily weather. 1 to 3 days of coverage.<br /><br />Runs on TRMNL <strong>Serverless</strong>.<br /><br />Icon by Solar Icons, CC Attribution.<br /><br />Weather by <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a>.
+  github_url: https://github.com/ExcuseMi/trmnl-family-calendar
+  category: calendar
+  help_text: TRMNL X Ready
+- keyname: calendars_simple
+  field_type: multi_string
+  name: Easy ICS (start here)
+  description: Your calendar links. That's it - no JSON needed. Each calendar's name is read automatically from the feed itself, and colors auto-assign.<br /> Use the Advanced Configuration below only if you need per-calendar colors, filtering, or people.
+  placeholder: https://cloud.example.com/family.ics
+  optional: true
+- keyname: advanced_config_enabled
+  field_type: boolean
+  name: Advanced Configuration
+  description: Need per-calendar colors, filtering, or to attach specific people to events? Turn this on to reveal a JSON config field in place of Easy ICS above - most people don't need this at all.
+  default: false
+  optional: true
+  conditional_validation:
+  - when: 'false'
+    hidden:
+    - calendars
+  - when: 'true'
+    hidden:
+    - calendars_simple
+- keyname: calendars
+  field_type: code
+  name: Advanced Configuration JSON
+  description: For per-calendar names/colors, filtering, or attaching people - as JSON. Replaces Easy ICS above while Advanced Configuration is on - list every calendar you want here, not just the ones needing special setup.<br /><br />Build it with <a href="https://excusemi.github.io/trmnl-family-calendar/tools/config-editor.html" target="_blank">the Configuration Editor</a> - paste the result here. Reference docs - <a href="https://github.com/ExcuseMi/trmnl-family-calendar/blob/main/CONFIG.md" target="_blank">CONFIG.md</a> (or <a href="https://github.com/ExcuseMi/trmnl-family-calendar/blob/main/LLM.md" target="_blank">LLM.md</a> for an LLM to read).
+  placeholder: |-
+    {
+      "calendars": [
+        {
+          "name": "Alex", "url": "https://cloud.example.com/alex.ics",
+          "rules": [{ "match": { "type": "any" }, "person": "Alex" }]
+        },
+        {
+          "name": "School", "url": "https://cloud.example.com/school.ics",
+          "rules": [
+            { "match": { "type": "regex", "value": "\\bL[1345]\\b|\\bK[123]\\b" }, "hide": true },
+            { "match": { "type": "word", "value": "L6" }, "person": "Alex" }
+          ]
+        },
+        {
+          "name": "Holidays",
+          "url": "https://calendar.google.com/calendar/ical/en.usa%23holiday%40group.v.calendar.google.com/public/basic.ics",
+          "color": "red"
+        }
+      ],
+      "people": [
+        { "name": "Alex", "color": "pink", "badge": "K" }
+      ]
+    }
+  optional: true
+- keyname: view_days
+  field_type: select
+  name: Days to Show
+  description: Days shown, starting today. Full-size layout only. Quadrant/half always show just today.
+  options:
+  - 1 day: '1'
+  - 2 days: '2'
+  - 3 days: '3'
+  default: '3'
+- keyname: full_view_style
+  field_type: select
+  name: Full View Style
+  description: How the full-size layout shows events. Agenda List is a compact time+title list per day (matches the smaller layouts). Timeline Grid is the hour-by-hour visual schedule. Quadrant/half views always use the agenda list.
+  options:
+  - Timeline grid: grid
+  - Agenda list: agenda
+  default: grid
+- keyname: lat_lon
+  field_type: lat_lon
+  name: Location (for sunrise/sunset and weather)
+  description: Drives sunrise/sunset shading, daily weather, and which hours get emphasized. Leave blank to hide all three.
+  optional: true
+- keyname: temperature_unit
+  field_type: select
+  name: Temperature Unit
+  description: For the daily high/low (requires Location).
+  options:
+  - Celsius (°C): celsius
+  - Fahrenheit (°F): fahrenheit
+  default: celsius
+- keyname: time_format
+  field_type: select
+  name: Time Format
+  description: How event and sun times are displayed.
+  options:
+  - 24-hour (14:30): 24h
+  - 12-hour (2:30 PM): 12h
+  default: 24h
+- keyname: hours
+  field_type: string
+  name: Visible Hours
+  description: Default hour range, as "start-end" (e.g. "7-21"). Always widens to fit real events/sunrise/sunset. Blank = 7-21.
+  placeholder: 7-21
+  optional: true
+- keyname: news_feed_enabled
+  field_type: boolean
+  name: Enable News Feed
+  description: Show top headlines from an RSS or Atom feed as a ticker in the footer, instead of per-day weather (which moves up into the header).
+  default: true
+  optional: true
+  group: News Feed
+  conditional_validation:
+  - when: 'false'
+    hidden:
+    - rss_url
+    - rss_label
+- keyname: rss_url
+  field_type: string
+  name: News Feed URL
+  description: An RSS or Atom feed URL.
+  placeholder: https://rss.nytimes.com/services/xml/rss/nyt/US.xml
+  default: https://rss.nytimes.com/services/xml/rss/nyt/WORLD.xml
+  optional: true
+  group: News Feed
+- keyname: rss_label
+  field_type: string
+  name: News Feed Label
+  description: Tag shown before the headlines in the ticker (it doesn't have to say "NEWS" - use whatever fits the feed, e.g. "SPORTS" or "BLOG"). Blank = "NEWS".
+  placeholder: NEWS
+  default: NEWS
+  optional: true
+  group: News Feed
+name: Family Calendar
+description: Smart-scaling family agenda
+refresh_interval: 15
