@@ -1,0 +1,6 @@
+services:
+  test-transform:
+    build: ./test/transform
+    container_name: trmnl-advanced-family-calendar-test-transform
+    volumes:
+      - ./plugin/src/src/transform.js:/app/transform.js:ro

@@ -1,0 +1,11 @@
+{
+  "name": "trmnl-family-calendar-config-editor-test",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node run.js"
+  },
+  "dependencies": {
+    "jsdom": "^30.0.1"
+  }
+}
