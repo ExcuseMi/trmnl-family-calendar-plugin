@@ -1,0 +1,914 @@
+
+
+{% template badge_circle %}
+  {%- assign badge_border_color = "currentColor" -%}
+  {%- if fg == "white" -%}{%- assign badge_border_color = "#888888" -%}{%- endif -%}
+  {%- comment -%}
+    contrast_ring adds a white-then-black double ring around the whole badge — since the outer
+    ring below is the assigned person's own color, it can otherwise end up nearly the same color
+    as the row/background it sits on (e.g. an event auto-colored by that same person). One of the
+    two rings is guaranteed to contrast against any background color, unlike a single fixed color.
+
+    Inside that, a solid black-or-white core (core_bg — whichever of black/white is the pre-
+    computed contrast shade for this person's hue, i.e. what already renders legibly on top of
+    it) holds the letter/icon, itself in the opposite shade. This is what keeps the badge readable
+    even when a person's own configured color is muted or dark: the old design filled the whole
+    badge with that color, which could nearly vanish against a similarly-toned event card (a gray
+    person color on a gray card, for instance) with only the outer contrast_ring saving it. The
+    person's color still shows as the ring — still color-codes at a glance — it just no longer
+    carries the icon's own contrast on its own.
+  {%- endcomment -%}
+  {%- assign core_bg = fg | default: "white" -%}
+  {%- assign core_fg = "black" -%}
+  {%- if core_bg == "black" -%}{%- assign core_fg = "white" -%}{%- endif -%}
+  <span class="rounded--small no-shrink flex flex--center-x flex--center-y bg--{{ hue }} font--bold w--min-0 h--min-0 {{ extra_cls }}" style="width:min({{ badge_w_expr }}, {{ badge_h_expr }});height:min({{ badge_w_expr }}, {{ badge_h_expr }});padding:14%;border:2px solid {{ badge_border_color }};box-sizing:border-box;{% if contrast_ring %}box-shadow:0 0 0 2px #ffffff, 0 0 0 4px #000000;{% endif %}">
+    <span class="rounded--small bg--{{ core_bg }} flex flex--center-x flex--center-y w--full h--full" style="box-sizing:border-box;">
+      <span class="text--{{ core_fg }} flex flex--center-x flex--center-y w--full h--full" style="font-size:calc(min({{ badge_w_expr }}, {{ badge_h_expr }}) * 0.48);line-height:1;{% if uppercase %}text-transform:uppercase;{% endif %}">
+      {%- if b.is_everyone -%}
+        <img src="https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/group/default/48px.svg" alt="{{ b.person }}" style="width:65%;height:65%;{% if core_fg == 'white' %}filter:invert(1);{% endif %}">
+      {%- else -%}
+        {{- b.text -}}
+      {%- endif -%}
+      </span>
+    </span>
+  </span>
+{% endtemplate %}
+
+{%- comment -%}
+  chip/chip_body: the full view's optional Timeline Grid style (data.full_view_grid) renders its
+  positioned event boxes with these — kept alongside agenda_row rather than instead of it, since
+  the grid is a user-selectable alternative (Full View Style setting), not dead code.
+
+  White card + thin black border, with the event's own color reduced to a left accent bar rather
+  than filling the whole card. A full week of tightly packed, fully-colored chips (this view's
+  own thing — every other view still fills its rows with the event's color, at a much lower
+  density) hurt legibility more than the color coding helped, especially once a short slot forced
+  small text on top of a saturated fill. Black-on-white keeps every title readable regardless of
+  hue; the accent bar still color-codes at a glance without competing with the text for contrast.
+{%- endcomment -%}
+{% template chip_body %}
+  <div class="w--full h--full flex flex--row flex--center-y w--min-0">
+    <span class="title {{ title_cls }} text--black text--left block w--full cal-fit-text{% if clip %} cal-fit-clip{% endif %} {{ pad_x_cls }} w--min-0" data-fit-min="{{ fit_min }}" data-fit-max="60">{{ title }}</span>
+  </div>
+{% endtemplate %}
+
+{% template chip %}
+  <div class="{{ size_class }} bg--white w--full flex flex--row {{ radius_cls }} relative" style="overflow:hidden;box-sizing:border-box;{{ size_style }}border:2px solid #000000;box-shadow:2px 2px 0 0 #000000;">
+    <div class="bg--{{ hue }} no-shrink" style="width:5px;align-self:stretch;"></div>
+    <div class="w--full h--full flex {{ flex_dir }} flex--center-y cal-fit-box {{ pad_cls }} w--min-0">
+      {%- render "chip_body", title: title, fit_min: fit_min, clip: clip, pad_x_cls: pad_x_cls -%}
+    </div>
+  </div>
+{% endtemplate %}
+
+{%- comment -%}
+  One agenda row (time/all-day + title + up to 2 person badges), shared by the single-day
+  agenda-list views (data.single_day.agenda) and the full view's own per-day agenda columns
+  (day.agenda) — same row markup either way, just fed a different list. The border+offset
+  box-shadow is the same "sticker" treatment `chip` uses; it's what keeps a chip's contents
+  legible on-device, so it's applied here too rather than relying on bg/text contrast alone.
+{%- endcomment -%}
+{% template agenda_row %}
+  {%- assign row_border_color = "currentColor" -%}
+  {%- if item.fg == "white" -%}{%- assign row_border_color = "#888888" -%}{%- endif -%}
+  {%- comment -%}
+    Badge size is keyed off title_clamp (full-view rows) rather than the layout branch below, so
+    an all-day item — routed to the single-line branch regardless of title_clamp — still gets the
+    same bigger badge as a timed event in that same view, instead of the smaller single-day-view
+    size that branch would otherwise imply.
+  {%- endcomment -%}
+  {%- assign badge_dim = "22px" -%}
+  {%- if title_clamp and title_clamp > 1 -%}{%- assign badge_dim = "32px" -%}{%- endif -%}
+  {%- comment -%}
+    A "current" (in-progress) event used to add a 1px-offset outline on top of this same box's
+    own border+shadow "sticker" treatment — two concentric rings with a visible gap between them,
+    reading as a double border. Widening this one border instead keeps a single ring that still
+    stands out.
+  {%- endcomment -%}
+  {%- assign row_border_width = "2px" -%}
+  {%- if item.current -%}{%- assign row_border_width = "4px" -%}{%- endif -%}
+  <div class="item w--full bg--{{ item.hue }} rounded--xsmall relative" style="overflow:hidden;flex-shrink:0;border:{{ row_border_width }} solid {{ row_border_color }};box-shadow:2px 2px 0 0 {{ row_border_color }};">
+    {%- comment -%}
+      Weather markers (item.icon_url) and all-day items (item.all_day) always use the compact
+      single-line layout below, even in the full view — their titles never need to wrap ("Rain
+      starts"/"Rain stops" is short; an all-day item has no time label competing for the line, so
+      its title gets the full row width to itself), so stacking them across two lines like a real
+      timed event would just waste vertical space.
+    {%- endcomment -%}
+    {%- if title_clamp and title_clamp > 1 and item.icon_url == blank and item.all_day != true -%}
+      {%- comment -%}
+        Stacked layout: time (+ badges) on their own first line, title wrapping below on its
+        own line(s) — requested specifically for the full view's narrower columns, where titles
+        need real width to wrap into rather than competing with the time for horizontal space.
+      {%- endcomment -%}
+      <div class="w--full flex flex--col gap--xsmall text--{{ item.fg }} px--2 py--1" style="min-width:0;">
+        <div class="w--full flex flex--row flex--center-y gap--small" style="min-width:0;">
+          {% if item.time %}<span class="label {{ time_cls | default: axis_cls }} text--{{ item.fg }} font--bold no-shrink" style="flex:0 0 auto;">{{ item.time }}</span>{% endif %}
+          {% if item.icon_url %}<img src="{{ item.icon_url }}" class="w--[20px] h--[20px] no-shrink" style="margin-left:auto;{% if item.fg == 'white' %}filter:invert(1);{% endif %}">{% endif %}
+          {% if item.badges and item.badges.size > 0 %}
+            <span class="flex flex--row gap--small no-shrink" style="flex:0 0 auto;{% unless item.icon_url %}margin-left:auto;{% endunless %}">
+              {% for badge in item.badges limit: 2 %}
+                {%- render "badge_circle", badge_w_expr: badge_dim, badge_h_expr: badge_dim, b: badge, hue: badge.hue, fg: badge.fg, extra_cls: "", uppercase: true, contrast_ring: true -%}
+              {% endfor %}
+            </span>
+          {% endif %}
+        </div>
+        <span class="title {{ event_title_cls }} text--{{ item.fg }} text--left w--full block" style="min-width:0;overflow-wrap:anywhere;" data-clamp="{{ title_clamp }}">{{ item.title }}</span>
+      </div>
+    {%- else -%}
+      {%- comment -%}
+        Weather markers get slightly less vertical padding (py--0.5 vs py--1) — a quick "rain
+        starts/stops" note doesn't need the same visual weight as a real calendar event.
+      {%- endcomment -%}
+      <div class="w--full flex flex--row flex--center-y gap--small text--{{ item.fg }} px--2 {% if item.icon_url %}py--0.5{% else %}py--1{% endif %}" style="min-width:0;">
+        {% if item.time %}<span class="label {{ time_cls | default: axis_cls }} text--{{ item.fg }} font--bold no-shrink" style="flex:0 0 auto;">{{ item.time }}</span>{% endif %}
+        <span class="title {{ event_title_cls }} text--{{ item.fg }}" style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.title }}</span>
+        {% if item.icon_url %}<img src="{{ item.icon_url }}" class="w--[20px] h--[20px] no-shrink"{% if item.fg == 'white' %} style="filter:invert(1);"{% endif %}>{% endif %}
+        {% if item.badges and item.badges.size > 0 %}
+          <span class="flex flex--row gap--xsmall no-shrink" style="flex:0 0 auto;">
+            {% for badge in item.badges limit: 2 %}
+              {%- render "badge_circle", badge_w_expr: badge_dim, badge_h_expr: badge_dim, b: badge, hue: badge.hue, fg: badge.fg, extra_cls: "", contrast_ring: true -%}
+            {% endfor %}
+          </span>
+        {% endif %}
+      </div>
+    {%- endif -%}
+  </div>
+{% endtemplate %}
+
+{% template main %}
+<style>
+
+.trmnl .screen--lg.screen--portrait .cal-head-badge { }
+.hours { font-family:monospace; width:2ch; }
+.cal-axis-period { font-weight: normal; white-space: nowrap; }
+.cal-day-underline { border-bottom: 1px solid #888888; padding-bottom: 1px; }
+.cal-day-underline--today { border-bottom: 1px solid #ffffff; padding-bottom: 1px; }
+.view--half_vertical .cal-axis-col [data-hour-shade="1"],
+.view--quadrant .cal-axis-col [data-hour-shade="1"],
+.view--half_horizontal .cal-axis-col [data-hour-shade="1"] { display: none; }
+.view--half_vertical .cal-axis-col [data-hour-shade="0"],
+.view--quadrant .cal-axis-col [data-hour-shade="0"],
+.view--half_horizontal .cal-axis-col [data-hour-shade="0"] { grid-row: span 2; }
+</style>
+{%- assign header_pct_scale = 1 -%}
+{%- if view == 4 -%}
+
+  {%- assign head_title_cls = "title--small" -%}
+  {%- assign chip_title_cls = "title--small" -%}
+  {%- assign axis_cls = "label--small" -%}
+  {%- assign event_title_cls = "title--small" -%}
+{%- elsif view == 3 -%}
+
+  {%- assign head_title_cls = "title--base lg:title--large" -%}
+  {%- assign chip_title_cls = "title--small" -%}
+  {%- assign axis_cls = "label--base lg:label--large" -%}
+  {%- assign event_title_cls = "title--small" -%}
+  {%- assign header_pct_scale = 0.6 -%}
+{%- elsif view == 2 -%}
+
+  {%- assign head_title_cls = "title--small" -%}
+  {%- assign chip_title_cls = "title--small lg:title--base" -%}
+  {%- assign axis_cls = "label--base lg:label--large" -%}
+  {%- assign event_title_cls = "title--small" -%}
+{%- else -%}
+
+  {%- assign head_title_cls = "title--large lg:title--large lg:portrait:title--xlarge" -%}
+  {%- assign chip_title_cls = "title--base lg:title--large lg:portrait:title--xlarge" -%}
+  {%- assign axis_cls = "label--large lg:label--xxlarge" -%}
+  {%- assign event_title_cls = "title--base" -%}
+{%- endif -%}
+
+{%- if view == 1 -%}
+  {%- assign shown_days_n = data.days.size -%}
+{%- else -%}
+  {%- assign shown_days_n = 1 -%}
+{%- endif -%}
+
+{%- if shown_days_n >= 6 -%}
+  {%- assign head_title_cls = "title--small" -%}
+  {%- assign chip_title_cls = "title--small" -%}
+{%- elsif shown_days_n >= 4 -%}
+  {%- assign head_title_cls = "title--base lg:title--large" -%}
+  {%- assign chip_title_cls = "title--small" -%}
+{%- endif -%}
+
+{%- if shown_days_n == 1 -%}
+  {%- assign day_span = 12 -%}
+{%- elsif shown_days_n == 2 -%}
+  {%- assign day_span = 6 -%}
+{%- else -%}
+  {%- assign day_span = 4 -%}
+{%- endif -%}
+
+{%- assign axis_span = 1 -%}
+{%- if shown_days_n == 1 -%}
+  {%- if view == 3 or view == 4 -%}
+    {%- assign axis_span = 2 -%}
+    {%- assign day_span = 11 -%}
+  {%- endif -%}
+{%- endif -%}
+{%- comment -%}
+  The Agenda List full view has no hour axis and, since per-event badges already show people
+  inline, no need for the corner legend either — the left gutter that reserves space for both is
+  dropped entirely (axis_span 0) so the day columns use the full width. The Timeline Grid still
+  needs that space (hour labels + corner legend, since it has no per-event badges of its own).
+{%- endcomment -%}
+{%- assign agenda_full_view = false -%}
+{%- if view == 1 -%}{%- unless data.full_view_grid -%}{%- assign axis_span = 0 -%}{%- assign agenda_full_view = true -%}{%- endunless -%}{%- endif -%}
+
+{%- assign header_pct = data.header_pct | times: header_pct_scale -%}
+
+{%- assign total_cols = day_span | times: shown_days_n | plus: axis_span -%}
+{%- assign day_width_pct = day_span | times: 100.0 | divided_by: total_cols -%}
+
+{%- assign allday_pct = data.allday_pct -%}
+{%- assign allday_max_rows = data.allday_max_rows -%}
+{%- if shown_days_n == 1 -%}
+  {%- assign day0_max_row = -1 -%}
+  {%- for bar in data.allday_bars -%}
+    {%- if bar.start_col == 0 and bar.row > day0_max_row -%}
+      {%- assign day0_max_row = bar.row -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- assign allday_max_rows = day0_max_row | plus: 1 -%}
+  {%- assign allday_pct = allday_max_rows | times: data.allday_row_pct -%}
+{%- endif -%}
+{%- comment -%}
+  All-day items already appear at the top of the agenda list itself for these views — the
+  single-day views (2/3/4, data.single_day.agenda) and, now, the full view's own Agenda List
+  style too (data.days[].agenda, agenda_full_view) — see the agenda loop(s) below. Showing them
+  again as bars up here would just duplicate them. Zeroing allday_pct also reclaims that header
+  space for the list (bigger grid_pct below) and, as a side effect, drops the top-left calendar
+  icon too (it's gated on allday_pct > 0, and doesn't apply once there's nothing left to point at
+  up here). The full view's Timeline Grid style (data.full_view_grid) keeps the bars — its
+  per-day content is segments/events chips, not agenda_row, so it has no other way to show them.
+{%- endcomment -%}
+{%- if view != 1 or agenda_full_view -%}
+  {%- assign allday_pct = 0 -%}
+  {%- assign allday_max_rows = 0 -%}
+{%- endif -%}
+{%- assign grid_pct = data.grid_pct | plus: data.allday_pct | minus: allday_pct -%}
+
+<div class="layout layout--col gap--none relative" id="cal-root" data-days-n="{{ shown_days_n }}" data-axis-span="{{ axis_span }}">
+  {% if data.error and data.has_events == false %}
+
+    <div class="flex flex--col flex--center-x flex--center-y w--full h--full text--center p--6 gap--small" >
+      <img src="https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/event_busy/default/48px.svg" alt="" class="h--auto w--max-8 lg:w--max-12">
+      <span class="title title--large">{{ data.unavailable_label }}</span>
+      <span class="description text--gray-50 w--max-[85cqw]" data-clamp="3">{{ data.error }}</span>
+    </div>
+  {% else %}
+
+    {%- comment -%}
+      The person-badge legend in the top-left corner is redundant on any view that renders the
+      agenda list (view 2/3/4, and now the full view's own Agenda List style) — each event
+      already carries its own (bigger) badge there. Only the Timeline Grid still shows it, since
+      its chip/chip_body rendering has no per-event badges of its own.
+    {%- endcomment -%}
+    {%- assign show_badge_overlay = false -%}
+    {%- if data.people.size > 0 and view == 1 and data.full_view_grid -%}{%- assign show_badge_overlay = true -%}{%- endif -%}
+
+    {%- assign gutter_pct = header_pct | plus: allday_pct -%}
+    {%- assign header_allday_rows = 1 -%}
+    {%- if allday_pct > 0 -%}{%- assign header_allday_rows = allday_max_rows | plus: 1 -%}{%- endif -%}
+    {%- assign header_allday_total_units = day_span | times: shown_days_n | plus: axis_span -%}
+    {%- capture header_allday_row_tracks -%}
+      {{- header_pct }}cqh
+      {%- if allday_pct > 0 -%}{% for r in (1..allday_max_rows) %} {{ data.allday_row_pct }}cqh{% endfor %}{%- endif -%}
+    {%- endcapture -%}
+
+    {%- comment -%}
+      The Agenda List full view renders its own header+all-day+body as one combined grid further
+      below instead (see agenda_full_view) — a day column with no all-day event of its own can
+      then start its agenda list right after its own last occupied all-day row (or at the very
+      top if it has none), rather than every column being pinned below the tallest column's
+      all-day band regardless of whether it needs that space. Timeline Grid and the single-day
+      views keep this original shared bar unchanged.
+    {%- endcomment -%}
+    {%- unless agenda_full_view -%}
+    <div class="grid gap--none h--[{{ gutter_pct }}cqh] h--min-[{{ gutter_pct }}cqh] bg--black flex-none relative" style="grid-template-columns:repeat({{ header_allday_total_units }}, 1fr);grid-template-rows:{{ header_allday_row_tracks | strip }};overflow:hidden;">
+
+      {% if axis_span > 0 %}
+      <div class="col--span-{{ axis_span }} bg--black flex flex--col flex--center-x flex--center-y p--0.5" style="grid-row:1 / span {{ header_allday_rows }};overflow:hidden;">
+        {% if show_badge_overlay %}
+          {%- assign badge_count = data.people.size -%}
+          {%- if badge_count > 8 -%}{%- assign badge_count = 8 -%}{%- endif -%}
+          {%- assign badge_cols = 1 -%}
+          {%- if axis_span >= 2 or badge_count >= 5 or view == 2 -%}{%- assign badge_cols = 2 -%}{%- endif -%}
+          {%- assign badge_rows = badge_count | plus: badge_cols | minus: 1 | divided_by: badge_cols -%}
+          {%- assign badge_cols_x_rows = badge_cols | times: badge_rows -%}
+          {%- assign badge_is_odd = true -%}
+          {%- if badge_cols_x_rows == badge_count -%}{%- assign badge_is_odd = false -%}{%- endif -%}
+          {%- assign axis_width_pct = axis_span | times: 100.0 | divided_by: total_cols -%}
+          {%- assign badge_col_gap_px = badge_cols | minus: 1 | times: 5 -%}
+          {%- assign badge_row_gap_px = badge_rows | minus: 1 | times: 5 -%}
+          {%- capture badge_w_expr -%}calc(({{ axis_width_pct }}cqw - {{ badge_col_gap_px }}px) / {{ badge_cols }} * 0.9){%- endcapture -%}
+          {%- capture badge_h_expr -%}calc(({{ gutter_pct }}cqh - {{ badge_row_gap_px }}px) / {{ badge_rows }} * 0.9){%- endcapture -%}
+          <div class="grid w--auto gap--xsmall grid--cols-{{ badge_cols }} flex--center-x" style="justify-items:center;">
+            {%- for b in data.people limit: 8 -%}
+              {%- assign badge_extra_cls = "" -%}
+              {%- if forloop.last and badge_is_odd and badge_cols == 2 -%}{%- assign badge_extra_cls = "col--span-2" -%}{%- endif -%}
+              {%- render "badge_circle", badge_w_expr: badge_w_expr, badge_h_expr: badge_h_expr, b: b, hue: b.hue, fg: b.fg, extra_cls: badge_extra_cls -%}
+            {%- endfor -%}
+          </div>
+        {% elsif allday_pct > 0 %}
+          <img src="https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/today/default/48px.svg" alt="{{ data.all_day_label }}" class="w--3 h--3 lg:w--5 lg:h--5" style="filter:invert(1);">
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% for day in data.days limit: shown_days_n %}
+
+        {%- comment -%}
+          Current-day header invert is scoped to the Timeline Grid full-view style only (view == 1
+          and data.full_view_grid) — every other view (single-day views, and the Agenda List full
+          view's own header further below) keeps its existing today treatment unchanged.
+        {%- endcomment -%}
+        {%- assign day_header_invert = false -%}
+        {%- if day.is_today and view == 1 and data.full_view_grid -%}{%- assign day_header_invert = true -%}{%- endif -%}
+
+        <div class="col--span-{{ day_span }} flex flex--col flex--center-x flex--center-y border--v-1 cal-day-cell" data-day-idx="{{ forloop.index0 }}" style="grid-row:1;">
+
+          <div class="rounded--small px--2.5 py--0.5 w--max-full flex {% if shown_days_n == 1 %}flex--row flex--center-y flex--center-x gap--small{% else %}flex--col flex--center-x gap--xsmall{% endif %} w--min-0 {% if day_header_invert %}bg--white{% endif %}" style="overflow:hidden;">
+
+            <span class="title {{ head_title_cls }} block w--min-0{% if shown_days_n == 1 %} no-shrink{% endif %}{% if data.rss_headline and shown_days_n != 1 %} {% if day.is_today %}cal-day-underline--today{% else %}cal-day-underline{% endif %}{% endif %}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;"><span class="{% if day_header_invert %}text--gray-30{% else %}text--gray-50{% endif %}">{{ day.label_short_weekday }}</span> <span class="{% if day_header_invert %}text--black{% else %}text--white{% endif %} font--bold">{{ day.label_short_rest }}</span></span>
+            {% if data.rss_headline and day.icon %}
+              <span class="flex flex--row flex--center-y gap--xsmall no-shrink">
+                <img class="{% if view == 1 %} w--6 h--6 lg:w--8 lg:h--8 {% else %} w--4 h--4 {% endif %} no-shrink" style="{% unless day_header_invert %}filter:invert(1);{% endunless %}{% if data.weather_stale %} brightness(0.65);{% endif %}" src="{{ day.icon }}">
+                <span class="label {% if view == 1 %}label--large lg:label--xlarge{% else %}label--base{% endif %} {% if day_header_invert %}text--black{% elsif data.weather_stale %}text--gray-50{% else %}text--white{% endif %} w--min-0">
+                <svg viewBox="0 0 10 10" class="{% if view == 1 %} w--4 h--4 {% else %} w--3 h--3 {% endif %} mr--0.5 no-shrink" fill="#999"><polygon points="5,1 9,8 1,8"/></svg>
+                <span class="mr--1">{{ day.temp.high }}°{{ data.temp_unit }}</span>
+                <svg viewBox="0 0 10 10" class="{% if view == 1 %} w--4 h--4 {% else %} w--3 h--3 {% endif %} mr--0.5 no-shrink" fill="#999"><polygon points="5,9 1,2 9,2"/></svg>
+                <span>{{ day.temp.low }}°{{ data.temp_unit }}</span></span>
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+
+      {% if allday_pct > 0 %}
+        {%- assign allday_days_last_idx = shown_days_n | minus: 1 -%}
+        {% for r in (1..allday_max_rows) %}
+          {%- assign allday_grid_row = r | plus: 1 -%}
+          {%- assign allday_fill_row0 = r | minus: 1 -%}
+          {% for d in (0..allday_days_last_idx) %}
+            {%- assign allday_fill_has_bar = false -%}
+            {%- for bar in data.allday_bars -%}
+              {%- assign allday_fill_bar_end = bar.start_col | plus: bar.span -%}
+              {%- if d >= bar.start_col and d < allday_fill_bar_end and bar.row == allday_fill_row0 -%}{%- assign allday_fill_has_bar = true -%}{%- endif -%}
+            {%- endfor -%}
+            {% assign allday_fill_col = day_span | times: d | plus: axis_span | plus: 1 %}
+            {%- comment -%}
+              Empty all-day cell: the bg--gray-75 fill above is the whole signal now — no diagonal
+              hatch layered on top (dropped: it was pure decoration on an already-distinct light
+              gray cell, and repeating patterns like this are exactly what causes e-ink ghosting).
+            {%- endcomment -%}
+            <div class="bg--gray-75 border--v-1 cal-allday-fill relative" data-day-idx="{{ d }}" style="grid-column:{{ allday_fill_col }} / span {{ day_span }};grid-row:{{ allday_grid_row }};"></div>
+          {% endfor %}
+        {% endfor %}
+        {% for bar in data.allday_bars %}
+          {% if bar.start_col < shown_days_n %}
+
+          {% assign allday_visible_span = shown_days_n | minus: bar.start_col %}
+          {% if bar.span <= allday_visible_span %}
+            {% assign allday_visible_span = bar.span %}
+          {% endif %}
+
+          {% assign allday_col_start = day_span | times: bar.start_col | plus: axis_span | plus: 1 %}
+          {% assign allday_bar_span = day_span | times: allday_visible_span %}
+          {% assign allday_row_num = bar.row | plus: 2 %}
+          {% assign ad_border_color = "currentColor" %}
+          {% if bar.fg == "white" %}{% assign ad_border_color = "#888888" %}{% endif %}
+          <div class="bg--{{ bar.hue }} flex flex--row flex--center-x flex--center-y cal-fit-box rounded--none relative cal-allday-bar-el" data-start-col="{{ bar.start_col }}" data-span="{{ allday_visible_span }}" style="grid-column:{{ allday_col_start }} / span {{ allday_bar_span }};grid-row:{{ allday_row_num }};overflow:hidden;border-bottom:1px solid {{ ad_border_color }};border-left:1px solid {{ ad_border_color }};">
+            <span class="title {{ chip_title_cls }} text--{{ bar.fg }} cal-fit-text cal-fit-clip cal-allday-title w--min-0" data-fit-min="9" data-fit-max="90">{{ bar.title }}</span>
+          </div>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    </div>
+    {%- endunless -%}
+
+    {% if data.alerts_pct > 0 and agenda_full_view == false %}
+      <div class="h--[{{ data.alerts_pct }}cqh] h--min-[{{ data.alerts_pct }}cqh] flex-none flex flex--row flex--center-y bg--gray-30 px--2" style="overflow:hidden;">
+        <span class="label label--small font--bold text--white w--min-0 block" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">⚠ Unavailable for a while: {{ data.calendar_alerts | join: ", " }}</span>
+      </div>
+    {% endif %}
+
+    {%- comment -%}
+      half_horizontal/half_vertical/quadrant are too small for a legible timeline grid — they get
+      a plain time+title list instead (data.single_day.agenda, built in transform.js). The full
+      view keeps its own shared multi-day grid.
+    {%- endcomment -%}
+    {%- if view == 2 or view == 3 or view == 4 -%}
+      {%- comment -%}
+        How many rows actually fit — and the "and N more" indicator for whatever doesn't — is
+        handled by TRMNL's own overflow engine (framework docs: /framework/docs/3.3/overflow)
+        rather than a hardcoded per-view guess: it measures the real rendered space at runtime
+        and hides/counts on its own. half_horizontal additionally gets 2 columns (it has roughly
+        twice the usable width of the other two).
+      {%- endcomment -%}
+      {%- if view == 2 -%}
+        <div class="columns w--full h--[{{ grid_pct }}cqh] h--min-[{{ grid_pct }}cqh] flex-none p--2" data-overflow-max-cols="2" data-overflow-counter="true" style="box-sizing:border-box;">
+          <div class="column gap--xsmall">
+      {%- else -%}
+        <div class="flex flex--col gap--xsmall w--full h--[{{ grid_pct }}cqh] h--min-[{{ grid_pct }}cqh] flex-none p--2" data-overflow="true" data-overflow-max-height="auto" data-overflow-counter="true" style="box-sizing:border-box;">
+      {%- endif -%}
+        {% for item in data.single_day.agenda %}
+          {%- render "agenda_row", item: item, axis_cls: axis_cls, event_title_cls: event_title_cls -%}
+        {% else %}
+          <div class="w--full h--full flex flex--center-x flex--center-y">
+            <span class="label {{ axis_cls }} text--gray-50">{{ data.nothing_scheduled_label }}</span>
+          </div>
+        {% endfor %}
+      {%- if view == 2 -%}
+          </div>
+        </div>
+      {%- else -%}
+        </div>
+      {%- endif -%}
+    {%- else -%}
+    {%- if data.full_view_grid -%}
+      {%- comment -%}
+        Timeline Grid — the original hour-by-hour visual schedule, kept as a user-selectable
+        alternative to the Agenda List below (Full View Style setting) rather than removed.
+      {%- endcomment -%}
+      {%- assign event_pad_cls = "pt--1 pb--2" -%}
+      {%- assign pad_x_cls = "px--2" -%}
+      {%- capture axis_row_tracks -%}{% for row in data.hour_rows %}{{ row.pct }}fr {% endfor %}{%- endcapture -%}
+      <div class="grid gap--none h--[{{ grid_pct }}cqh] h--min-[{{ grid_pct }}cqh] flex-none relative">
+        <div class="col--span-{{ axis_span }} cal-axis-col" style="display:grid;grid-template-rows:{{ axis_row_tracks | strip }};">
+          {% for row in data.hour_rows %}
+
+            <div class="w--full flex flex--row {% if row.period %}gap--distribute{% else %}flex--right{% endif %} cal-row cal-fit-box relative pr--2 {% if row.current %}bg--black{% elsif row.shade == 1 %}bg--gray-65{% endif %}" data-hour-shade="{{ row.shade }}" data-hour-current="{{ row.current }}" {% if row.current %}style="border-top:1px solid #888888;"{% endif %}>
+
+                {% if row.period %}<span class="cal-axis-period {% if row.current %}text--gray-70{% else %}text--gray-15{% endif %} ml--1 mr--1">{{ row.period }}</span>{% endif %}<span class="label {{ axis_cls }} {% if row.bold %}font--bold {% endif %}{% if row.current %}text--white {% endif %}cal-fit-text cal-axis-text{% if row.important %} cal-axis-important{% endif %} inline-block text--right hours" data-fit-min="8" data-fit-max="40">{{ row.hour }}</span>
+            </div>
+          {% endfor %}
+        </div>
+        {% for day in data.days limit: shown_days_n %}
+          {%- assign day_idx = forloop.index0 -%}
+          {%- assign day_has_allday = false -%}
+          {%- for bar in data.allday_bars -%}
+            {%- assign bar_end_col = bar.start_col | plus: bar.span -%}
+            {%- if day_idx >= bar.start_col and day_idx < bar_end_col -%}{%- assign day_has_allday = true -%}{%- endif -%}
+          {%- endfor -%}
+          {%- assign day_is_empty = false -%}
+          {%- if day.events.size == 0 and day_has_allday == false -%}{%- assign day_is_empty = true -%}{%- endif -%}
+          <div class="col--span-{{ day_span }} flex flex--col gap--none border--v-1 relative cal-day-cell" data-day-idx="{{ day_idx }}" style="overflow:hidden;">
+
+            {% assign seg_cum_pct = 0 %}
+            {% for seg in day.segments %}
+              {% if seg.night %}
+
+                {% assign seg_bg = "bg--gray-30" %}
+              {% elsif day.is_today and seg.past %}
+
+                {% assign seg_bg = "bg--gray-75" %}
+                {% if seg.shade == 1 %}{% assign seg_bg = "bg--gray-70" %}{% endif %}
+              {% elsif day.is_today %}
+                {% assign seg_bg = "" %}
+                {% if seg.shade == 1 %}{% assign seg_bg = "bg--gray-75" %}{% endif %}
+              {% else %}
+                {% assign seg_bg = "bg--gray-75" %}
+                {% if seg.shade == 1 %}{% assign seg_bg = "bg--gray-70" %}{% endif %}
+              {% endif %}
+              {%- assign seg_pct_of_cell = seg.pct | times: 100.0 | divided_by: grid_pct -%}
+              <div class="w--full cal-row {{ seg_bg }} relative" style="height:{{ seg_pct_of_cell }}%;{% if seg.night %}border-bottom:1px solid rgba(255,255,255,0.2);{% endif %}">
+                {% if seg.weather == "rain" %}
+                  <div class="absolute inset--0" style="background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2714%27 height=%2714%27 viewBox=%270 0 14 14%27%3E%3Cg stroke=%27%23888888%27 stroke-width=%271.6%27 stroke-linecap=%27round%27%3E%3Cline x1=%2711%27 y1=%271%27 x2=%278%27 y2=%277%27/%3E%3Cline x1=%274%27 y1=%278%27 x2=%271%27 y2=%2714%27/%3E%3C/g%3E%3C/svg%3E');image-rendering:-moz-crisp-edges;image-rendering:pixelated;background-position:0 -{{ seg_cum_pct }}cqh;"></div>
+                {% elsif seg.weather == "storm" %}
+                  <div class="absolute inset--0" style="background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2728%27 height=%2728%27 viewBox=%270 0 28 28%27%3E%3Cpath fill=%27%23555555%27 d=%27M6 2c-1.8 2.4-3 4.5-3 6.1 0 2.1 1.3 3.9 3 3.9s3-1.8 3-3.9C9 6.5 7.8 4.4 6 2z%27 transform=%27rotate(15 6 6)%27/%3E%3Cpath fill=%27%23555555%27 d=%27M20 2c-1.8 2.4-3 4.5-3 6.1 0 2.1 1.3 3.9 3 3.9s3-1.8 3-3.9C23 6.5 21.8 4.4 20 2z%27 transform=%27rotate(15 20 6)%27/%3E%3Cpath fill=%27%23555555%27 d=%27M13 14c-1.8 2.4-3 4.5-3 6.1 0 2.1 1.3 3.9 3 3.9s3-1.8 3-3.9c0-1.6-1.2-3.7-3-6.1z%27 transform=%27rotate(15 13 18)%27/%3E%3C/svg%3E');image-rendering:-moz-crisp-edges;image-rendering:pixelated;background-position:0 -{{ seg_cum_pct }}cqh;"></div>
+                {% elsif seg.weather == "snow" %}
+                  <div class="absolute inset--0" style="background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2728%27 height=%2728%27 viewBox=%270 0 28 28%27%3E%3Cg stroke=%27%23999999%27 stroke-width=%271%27 stroke-linecap=%27round%27%3E%3Cg transform=%27translate(7,7)%27%3E%3Cline x1=%27-3%27 y1=%270%27 x2=%273%27 y2=%270%27/%3E%3Cline x1=%270%27 y1=%27-3%27 x2=%270%27 y2=%273%27/%3E%3Cline x1=%27-2.1%27 y1=%27-2.1%27 x2=%272.1%27 y2=%272.1%27/%3E%3Cline x1=%27-2.1%27 y1=%272.1%27 x2=%272.1%27 y2=%27-2.1%27/%3E%3C/g%3E%3Cg transform=%27translate(20,18)%27%3E%3Cline x1=%27-3%27 y1=%270%27 x2=%273%27 y2=%270%27/%3E%3Cline x1=%270%27 y1=%27-3%27 x2=%270%27 y2=%273%27/%3E%3Cline x1=%27-2.1%27 y1=%27-2.1%27 x2=%272.1%27 y2=%272.1%27/%3E%3Cline x1=%27-2.1%27 y1=%272.1%27 x2=%272.1%27 y2=%27-2.1%27/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');image-rendering:-moz-crisp-edges;image-rendering:pixelated;background-position:0 -{{ seg_cum_pct }}cqh;"></div>
+                {% elsif seg.weather %}
+                  <div class="absolute inset--0" style="background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2728%27 height=%2728%27 viewBox=%270 0 28 28%27%3E%3Crect x=%270%27 y=%277%27 width=%2714%27 height=%272.5%27 rx=%271.25%27 fill=%27%23aaaaaa%27/%3E%3Crect x=%2714%27 y=%2718%27 width=%2714%27 height=%272.5%27 rx=%271.25%27 fill=%27%23aaaaaa%27/%3E%3C/svg%3E');image-rendering:-moz-crisp-edges;image-rendering:pixelated;background-position:0 -{{ seg_cum_pct }}cqh;"></div>
+                {% endif %}
+              </div>
+              {% assign seg_cum_pct = seg_cum_pct | plus: seg.pct %}
+            {% endfor %}
+            {%- comment -%}
+              A day with nothing scheduled (no timed events, no all-day item) used to get a
+              diagonal hatch pattern layered over its hour shading — replaced with a flat light
+              gray fill: same "nothing here" signal, no repeating pattern for the e-ink panel to
+              ghost on.
+            {%- endcomment -%}
+            {% if day_is_empty %}
+              <div class="absolute inset--0 bg--gray-75" style="pointer-events:none;"></div>
+            {% endif %}
+            {% for event in day.events %}
+
+              {%- assign event_box_h = event.box_height_pct | default: event.height_pct -%}
+              <div class="absolute pr--0.5 pb--0.5 relative z--1" style="top:{{ event.top_pct }}%;height:{{ event_box_h }}%;left:calc({{ event.lane_index }} * 100% / {{ event.nlanes }});width:calc(100% / {{ event.nlanes }});">
+                {%- assign event_clip = true -%}
+                {% render "chip", hue: event.hue, title: event.title, flex_dir: "flex--col", size_class: "h--full w--full", size_style: "", pad_cls: event_pad_cls, radius_cls: "rounded--xsmall", title_cls: event_title_cls, fit_min: 11, clip: event_clip, pad_x_cls: pad_x_cls %}
+              </div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    {%- else -%}
+    {%- comment -%}
+      Agenda List — one agenda-list column per visible day (up to 3), each with its own overflow
+      — same row markup as the single-day views (agenda_row), just fed day.agenda instead of
+      data.single_day.agenda. Unlike every other view, the header (date/weather), the all-day
+      bars, AND this body are all ONE combined grid here (rows: header, then one per all-day
+      row, then a final body row spanning the rest) rather than two stacked grids — that's what
+      lets a day with no all-day event of its own start its agenda right after the header
+      (grid-row 2), reclaiming the space other columns need for their own bars, instead of every
+      column being pinned below the tallest column's all-day band. A day WITH bars starts right
+      after its own last one instead (day_body_row_start below); any gap above that (rare: only
+      when a day's bars skip an earlier row that a different day is using) still shows the
+      original hatching rather than being reclaimed, to keep this simple. axis_span is 0 here
+      (see its assignment above) — no leading gutter, no corner legend/icon (per-event badges
+      already show people inline).
+    {%- endcomment -%}
+      {%- assign header_allday_last_row = allday_max_rows | plus: 1 -%}
+      {%- assign alerts_grid_row = header_allday_last_row | plus: 1 -%}
+      {%- assign agenda_total_pct = gutter_pct | plus: grid_pct | plus: data.alerts_pct -%}
+      <div class="grid gap--none h--[{{ agenda_total_pct }}cqh] h--min-[{{ agenda_total_pct }}cqh] flex-none relative" style="grid-template-columns:repeat({{ header_allday_total_units }}, 1fr);grid-template-rows:{{ header_allday_row_tracks | strip }}{% if data.alerts_pct > 0 %} {{ data.alerts_pct }}cqh{% endif %} {{ grid_pct }}cqh;overflow:hidden;">
+        {% for day in data.days limit: shown_days_n %}
+          <div class="col--span-{{ day_span }} bg--black flex flex--col flex--center-x flex--center-y border--v-1 cal-day-cell" data-day-idx="{{ forloop.index0 }}" style="grid-row:1;">
+            <div class="rounded--small px--2.5 py--0.5 w--max-full flex flex--col flex--center-x gap--xsmall w--min-0" style="overflow:hidden;">
+              <span class="title {{ head_title_cls }} block w--min-0{% if data.rss_headline %} {% if day.is_today %}cal-day-underline--today{% else %}cal-day-underline{% endif %}{% endif %}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;"><span class="text--gray-50">{{ day.label_short_weekday }}</span> <span class="text--white font--bold">{{ day.label_short_rest }}</span></span>
+              {% if data.rss_headline and day.icon %}
+                <span class="flex flex--row flex--center-y gap--xsmall no-shrink">
+                  <img class="w--6 h--6 lg:w--8 lg:h--8 no-shrink" style="filter:invert(1){% if data.weather_stale %} brightness(0.65){% endif %};" src="{{ day.icon }}">
+                  <span class="label label--large lg:label--xlarge {% if data.weather_stale %}text--gray-50{% else %}text--white{% endif %} w--min-0">
+                  <svg viewBox="0 0 10 10" class="w--4 h--4 mr--0.5 no-shrink" fill="#999"><polygon points="5,1 9,8 1,8"/></svg>
+                  <span class="mr--1">{{ day.temp.high }}°{{ data.temp_unit }}</span>
+                  <svg viewBox="0 0 10 10" class="w--4 h--4 mr--0.5 no-shrink" fill="#999"><polygon points="5,9 1,2 9,2"/></svg>
+                  <span>{{ day.temp.low }}°{{ data.temp_unit }}</span></span>
+                </span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+
+        {% if allday_pct > 0 %}
+          {%- assign allday_days_last_idx = shown_days_n | minus: 1 -%}
+          {% for r in (1..allday_max_rows) %}
+            {%- assign allday_grid_row = r | plus: 1 -%}
+            {%- assign allday_fill_row0 = r | minus: 1 -%}
+            {% for d in (0..allday_days_last_idx) %}
+              {%- assign allday_fill_has_bar = false -%}
+              {%- assign day_last_bar_row0 = -1 -%}
+              {%- for bar in data.allday_bars -%}
+                {%- assign allday_fill_bar_end = bar.start_col | plus: bar.span -%}
+                {%- if d >= bar.start_col and d < allday_fill_bar_end -%}
+                  {%- if bar.row == allday_fill_row0 -%}{%- assign allday_fill_has_bar = true -%}{%- endif -%}
+                  {%- if bar.row > day_last_bar_row0 -%}{%- assign day_last_bar_row0 = bar.row -%}{%- endif -%}
+                {%- endif -%}
+              {%- endfor -%}
+              {%- comment -%} Rows below this day's own last bar are reclaimed by its agenda body below, not hatched. {%- endcomment -%}
+              {%- unless allday_fill_has_bar == false and allday_fill_row0 > day_last_bar_row0 -%}
+                {% assign allday_fill_col = day_span | times: d | plus: 1 %}
+                <div class="bg--gray-75 border--v-1 cal-allday-fill relative" data-day-idx="{{ d }}" style="grid-column:{{ allday_fill_col }} / span {{ day_span }};grid-row:{{ allday_grid_row }};"></div>
+              {%- endunless -%}
+            {% endfor %}
+          {% endfor %}
+          {% for bar in data.allday_bars %}
+            {% if bar.start_col < shown_days_n %}
+            {% assign allday_visible_span = shown_days_n | minus: bar.start_col %}
+            {% if bar.span <= allday_visible_span %}
+              {% assign allday_visible_span = bar.span %}
+            {% endif %}
+            {% assign allday_col_start = day_span | times: bar.start_col | plus: 1 %}
+            {% assign allday_bar_span = day_span | times: allday_visible_span %}
+            {% assign allday_row_num = bar.row | plus: 2 %}
+            {% assign ad_border_color = "currentColor" %}
+            {% if bar.fg == "white" %}{% assign ad_border_color = "#888888" %}{% endif %}
+            <div class="bg--{{ bar.hue }} flex flex--row flex--center-x flex--center-y cal-fit-box rounded--none relative cal-allday-bar-el" data-start-col="{{ bar.start_col }}" data-span="{{ allday_visible_span }}" style="grid-column:{{ allday_col_start }} / span {{ allday_bar_span }};grid-row:{{ allday_row_num }};overflow:hidden;border-bottom:1px solid {{ ad_border_color }};border-left:1px solid {{ ad_border_color }};">
+              <span class="title {{ chip_title_cls }} text--{{ bar.fg }} cal-fit-text cal-fit-clip cal-allday-title w--min-0" data-fit-min="9" data-fit-max="90">{{ bar.title }}</span>
+            </div>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+
+        {% if data.alerts_pct > 0 %}
+          <div class="flex flex--row flex--center-y bg--gray-30 px--2" style="grid-column:1 / -1;grid-row:{{ alerts_grid_row }};overflow:hidden;">
+            <span class="label label--small font--bold text--white w--min-0 block" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">⚠ Unavailable for a while: {{ data.calendar_alerts | join: ", " }}</span>
+          </div>
+        {% endif %}
+
+        {% for day in data.days limit: shown_days_n %}
+          {%- assign day_idx = forloop.index0 -%}
+          {%- comment -%}
+            A day's body can only reclaim space above its own last all-day row when nothing else
+            spans every column in between — the alerts bar does exactly that (grid-column:1/-1),
+            so a single rectangular grid item can't skip past it to resume below. When alerts is
+            showing, every day's body starts uniformly right after it instead (the pre-reclaim
+            behavior for this one, rare, transient state) rather than partially overlapping it.
+          {%- endcomment -%}
+          {%- if data.alerts_pct > 0 -%}
+            {%- assign day_body_row_start = header_allday_last_row | plus: 2 -%}
+          {%- else -%}
+            {%- assign day_last_bar_row0 = -1 -%}
+            {%- comment -%}
+              allday_pct is 0 for agenda_full_view (all-day items render inline in day.agenda
+              instead, see above) — its bars never occupy grid rows here, so every day's body
+              starts right after the header regardless of data.allday_bars.
+            {%- endcomment -%}
+            {%- if allday_pct > 0 -%}
+              {%- for bar in data.allday_bars -%}
+                {%- assign bar_end = bar.start_col | plus: bar.span -%}
+                {%- if day_idx >= bar.start_col and day_idx < bar_end and bar.row > day_last_bar_row0 -%}{%- assign day_last_bar_row0 = bar.row -%}{%- endif -%}
+              {%- endfor -%}
+            {%- endif -%}
+            {%- assign day_body_row_start = 2 -%}
+            {%- if day_last_bar_row0 > -1 -%}{%- assign day_body_row_start = day_last_bar_row0 | plus: 3 -%}{%- endif -%}
+          {%- endif -%}
+          <div class="col--span-{{ day_span }} flex flex--col gap--xsmall border--v-1 relative cal-day-cell p--1" data-day-idx="{{ day_idx }}" data-overflow="true" data-overflow-max-height="auto" data-overflow-counter="true" style="grid-row:{{ day_body_row_start }} / -1;overflow:hidden;box-sizing:border-box;">
+            {% for item in day.agenda %}
+              {%- render "agenda_row", item: item, axis_cls: axis_cls, event_title_cls: event_title_cls, title_clamp: 3, time_cls: "label--base lg:label--large" -%}
+            {% else %}
+              <div class="w--full h--full flex flex--center-x flex--center-y">
+                <span class="label {{ axis_cls }} text--gray-50">{{ data.nothing_scheduled_label }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    {%- endif -%}
+    {%- endif -%}
+
+    <div class="grid gap--none h--[{{ data.footer_pct }}cqh] h--min-[{{ data.footer_pct }}cqh] bg--black flex flex--center-y" style="overflow:hidden;">
+      {% if data.rss_headline %}
+        <div class="h--full col--span-{{ shown_days_n | times: day_span | plus: axis_span }} flex flex--row flex--center-y flex--left pl--2 pr--2 w--min-0" style="overflow:hidden;">
+          <span class="label {% if view == 1 %}label--large lg:label--xlarge{% else %}label--base{% endif %} font--bold bg--black text--white w--min-0 w--full block" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:0.5px;">{%- if data.rss_headline.label -%}<span class="text--gray-50">{{ data.rss_headline.label }}</span><span class="text--gray-50">&nbsp;»&nbsp;</span>{%- endif -%}{%- for t in data.rss_headline.titles -%}{{ t }}{%- unless forloop.last -%}<span class="text--gray-50">&nbsp;•&nbsp;</span>{%- endunless -%}{%- endfor -%}</span>
+        </div>
+      {% else %}
+      {% if axis_span > 0 %}
+      <div class="col--span-{{ axis_span }} flex flex--center-x">
+        <svg class="{% if view == 1 %} w--6 h--6  lg:w--10 lg:h--10 {% else if view == 2 or view == 4 %} hidden {% else %} w--4 h--4 {% endif %} image" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M7.75 2.5C7.75 2.08579 7.41421 1.75 7 1.75C6.58579 1.75 6.25 2.08579 6.25 2.5V4.07926C4.81067 4.19451 3.86577 4.47737 3.17157 5.17157C2.47737 5.86577 2.19451 6.81067 2.07926 8.25H21.9207C21.8055 6.81067 21.5226 5.86577 20.8284 5.17157C20.1342 4.47737 19.1893 4.19451 17.75 4.07926V2.5C17.75 2.08579 17.4142 1.75 17 1.75C16.5858 1.75 16.25 2.08579 16.25 2.5V4.0129C15.5847 4 14.839 4 14 4H10C9.16097 4 8.41527 4 7.75 4.0129V2.5Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M2 12C2 11.161 2 10.4153 2.0129 9.75H21.9871C22 10.4153 22 11.161 22 12V14C22 17.7712 22 19.6569 20.8284 20.8284C19.6569 22 17.7712 22 14 22H10C6.22876 22 4.34315 22 3.17157 20.8284C2 19.6569 2 17.7712 2 14V12ZM17 14C17.5523 14 18 13.5523 18 13C18 12.4477 17.5523 12 17 12C16.4477 12 16 12.4477 16 13C16 13.5523 16.4477 14 17 14ZM17 18C17.5523 18 18 17.5523 18 17C18 16.4477 17.5523 16 17 16C16.4477 16 16 16.4477 16 17C16 17.5523 16.4477 18 17 18ZM13 13C13 13.5523 12.5523 14 12 14C11.4477 14 11 13.5523 11 13C11 12.4477 11.4477 12 12 12C12.5523 12 13 12.4477 13 13ZM13 17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17C11 16.4477 11.4477 16 12 16C12.5523 16 13 16.4477 13 17ZM7 14C7.55228 14 8 13.5523 8 13C8 12.4477 7.55228 12 7 12C6.44772 12 6 12.4477 6 13C6 13.5523 6.44772 14 7 14ZM7 18C7.55228 18 8 17.5523 8 17C8 16.4477 7.55228 16 7 16C6.44772 16 6 16.4477 6 17C6 17.5523 6.44772 18 7 18Z" fill="white"/>
+</svg>
+      </div>
+      {% endif %}
+        {% for day in data.days limit: shown_days_n %}
+          <div class="h--full  col--span-{{ day_span }} flex flex--row flex--center-x flex--center-y gap--xsmall border--v-1 cal-day-cell" data-day-idx="{{ forloop.index0 }}" style="overflow:hidden;">
+            {% if day.icon %}
+
+              <img class="{{ chip_title_cls }} no-shrink  {% if view == 1 %} w--6 h--6  lg:w--10 lg:h--10 {% else %} w--4 h--4  {% endif %}" style="filter:invert(1){% if data.weather_stale %} brightness(0.65){% endif %};" src="{{ day.icon }}">
+
+              {%- if view <= 4 -%}
+
+                <span class="label {{ chip_title_cls }} bg--black {% if data.weather_stale %}text--gray-50{% else %}text--white{% endif %} w--min-0">
+                <svg viewBox="0 0 10 10" class="w--2 h--2 lg:w--4 lg:h--4 mr--0.5 lg:mr--1 no-shrink" fill="#999"><polygon points="5,1 9,8 1,8"/></svg>
+                <span class="mr--1">{{ day.temp.high }}°{{ data.temp_unit }}</span>
+                <svg viewBox="0 0 10 10" class="w--2 h--2 lg:w--4 lg:h--4 mr--0.5 lg:mr--1 no-shrink" fill="#999"><polygon points="5,9 1,2 9,2"/></svg>
+                <span>{{ day.temp.low }}°{{ data.temp_unit }}</span></span>
+              {%- else -%}
+                <span class="label {{ chip_title_cls }} bg--black {% if data.weather_stale %}text--gray-50{% else %}text--white{% endif %} w--min-0">{{ day.temp.high }}° / {{ day.temp.low }}°</span>
+              {%- endif -%}
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<script>
+(function () {
+  function padOf(cs, side) {
+    return parseFloat(cs.getPropertyValue('padding-' + side)) || 0;
+  }
+  function setPad(el, side, px) {
+    el.style.setProperty('padding-' + side, px + 'px');
+  }
+  function fit(el, forced) {
+    var box = el.closest('.cal-fit-box');
+    if (!box) return null;
+    var boxCsForPad = getComputedStyle(box);
+    var padTop = padOf(boxCsForPad, 'top');
+    var padBottom = padOf(boxCsForPad, 'bottom');
+    var minContentH = 14;
+    var contentH = box.clientHeight - padTop - padBottom;
+    if (contentH < minContentH && (padTop > 0 || padBottom > 0)) {
+      var totalPad = padTop + padBottom;
+      var shrink = Math.min(totalPad, minContentH - contentH);
+      padTop = Math.max(0, padTop - shrink * (padTop / totalPad));
+      padBottom = Math.max(0, padBottom - shrink * (padBottom / totalPad));
+      setPad(box, 'top', padTop);
+      setPad(box, 'bottom', padBottom);
+      contentH = box.clientHeight - padTop - padBottom;
+    }
+    var mustClip = el.classList.contains('cal-axis-text') || el.classList.contains('cal-fit-clip');
+    box.style.overflow = mustClip ? 'hidden' : 'visible';
+    el.style.display = 'block';
+    var min = parseInt(el.getAttribute('data-fit-min'), 10) || 11;
+    var max = parseInt(el.getAttribute('data-fit-max'), 10) || 90;
+
+    function setSize(px) {
+      el.style.fontSize = px + 'px';
+      el.style.lineHeight = Math.round(px * 1.15) + 'px';
+    }
+
+    if (forced != null) {
+      el.style.whiteSpace = 'nowrap';
+      el.style.overflowWrap = 'normal';
+      setSize(forced);
+      return forced;
+    }
+
+    if (el.hasAttribute('data-fit-original')) el.textContent = el.getAttribute('data-fit-original');
+    el.style.whiteSpace = 'normal';
+
+    var boxCs = getComputedStyle(box);
+    var padX = padOf(boxCs, 'left') + padOf(boxCs, 'right');
+    var availW = box.clientWidth - padX - 2;
+    if (availW <= 0) { setSize(min); return min; }
+    el.style.maxWidth = availW + 'px';
+
+    function fitsOneLine(px) {
+      return el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= Math.round(px * 1.15) + 2 && el.scrollHeight <= contentH + 1;
+    }
+    var MAX_WRAP_LINES = 3;
+    function fitsWrapped(px) {
+      var lineH = Math.round(px * 1.15);
+      var lines = Math.round(el.scrollHeight / lineH);
+      return el.scrollHeight <= contentH + 1 && el.scrollWidth <= el.clientWidth + 1 && lines <= MAX_WRAP_LINES;
+    }
+
+    setSize(max);
+    if (fitsOneLine(max)) return max;
+    var isMultiWord = /\s/.test(el.textContent);
+    var isTrimmable = !el.classList.contains('cal-axis-text');
+    var absMin = isTrimmable ? 8 : 4;
+
+    function searchMax(lo, hi, test) {
+      setSize(lo);
+      if (!test(lo)) return null;
+      while (hi - lo > 1) {
+        var mid = Math.floor((lo + hi) / 2);
+        setSize(mid);
+        if (test(mid)) { lo = mid; } else { hi = mid; }
+      }
+      return lo;
+    }
+
+    var oneLineSize = searchMax(absMin, max, fitsOneLine);
+
+    var WRAP_MIN = 11;
+    var wrappedSize = null;
+    if (isMultiWord) {
+      el.style.overflowWrap = 'normal';
+      wrappedSize = searchMax(WRAP_MIN, max, fitsWrapped);
+    }
+
+    if (oneLineSize !== null && (wrappedSize === null || wrappedSize <= oneLineSize)) {
+      el.style.overflowWrap = 'anywhere';
+      setSize(oneLineSize);
+      return oneLineSize;
+    }
+    if (wrappedSize !== null) {
+      el.style.overflowWrap = 'normal';
+      setSize(wrappedSize);
+      return wrappedSize;
+    }
+
+    var wrappedAnywhereSize = null;
+    if (isMultiWord && oneLineSize === null) {
+      el.style.overflowWrap = 'anywhere';
+      wrappedAnywhereSize = searchMax(WRAP_MIN, max, fitsWrapped);
+    }
+    if (wrappedAnywhereSize !== null) {
+      el.style.overflowWrap = 'anywhere';
+      setSize(wrappedAnywhereSize);
+      return wrappedAnywhereSize;
+    }
+
+    setSize(absMin);
+    if (isTrimmable) truncateToFit(el, contentH);
+    box.style.overflow = 'hidden';
+    return absMin;
+  }
+
+  function truncateToFit(el, contentH) {
+    var original = el.getAttribute('data-fit-original');
+    if (original == null) {
+      original = el.textContent;
+      el.setAttribute('data-fit-original', original);
+    }
+    el.style.whiteSpace = 'nowrap';
+    el.style.overflowWrap = 'normal';
+    el.textContent = original;
+    if (el.scrollHeight > contentH + 1) return;
+    if (el.scrollWidth <= el.clientWidth + 1) return;
+    var text = original;
+    while (text.length > 1 && el.scrollWidth > el.clientWidth + 1) {
+      text = text.slice(0, -1);
+      el.textContent = text.replace(/[\s.,;:!?-]+$/, '') + '…';
+    }
+  }
+
+  function capDaysInPortrait(root) {
+    var daysN = parseInt(root.getAttribute('data-days-n'), 10) || 1;
+    var portrait = !!document.querySelector('.screen--portrait');
+    if (!portrait || daysN <= 2) return;
+    var CAP = 2, NEW_SPAN = 6;
+    // Column 1 is reserved for the hour-axis/corner legend only when axis_span > 0 (Timeline
+    // Grid, single-day views) — the Agenda List full view drops that gutter entirely
+    // (axis_span 0), so day columns there start at column 1, not 2.
+    var axisOffset = (parseInt(root.getAttribute('data-axis-span'), 10) || 0) + 1;
+
+    var cells = root.querySelectorAll('.cal-day-cell');
+    for (var i = 0; i < cells.length; i++) {
+      var idx = parseInt(cells[i].getAttribute('data-day-idx'), 10);
+      if (idx >= CAP) { cells[i].style.display = 'none'; }
+      else { cells[i].style.gridColumn = 'span ' + NEW_SPAN; }
+    }
+
+    var fills = root.querySelectorAll('.cal-allday-fill');
+    for (var j = 0; j < fills.length; j++) {
+      var fIdx = parseInt(fills[j].getAttribute('data-day-idx'), 10);
+      if (fIdx >= CAP) { fills[j].style.display = 'none'; continue; }
+      var fCol = NEW_SPAN * fIdx + axisOffset;
+      fills[j].style.gridColumn = fCol + ' / span ' + NEW_SPAN;
+    }
+
+    var bars = root.querySelectorAll('.cal-allday-bar-el');
+    for (var k = 0; k < bars.length; k++) {
+      var bar = bars[k];
+      var sCol = parseInt(bar.getAttribute('data-start-col'), 10);
+      var span = parseInt(bar.getAttribute('data-span'), 10);
+      if (sCol >= CAP) { bar.style.display = 'none'; continue; }
+      var visSpan = Math.min(span, CAP - sCol);
+      var newStart = NEW_SPAN * sCol + axisOffset;
+      bar.style.gridColumn = newStart + ' / span ' + (NEW_SPAN * visSpan);
+    }
+  }
+
+  function run() {
+    var root = document.getElementById('cal-root');
+    if (!root) return;
+    capDaysInPortrait(root);
+    var rows = root.querySelectorAll('.cal-row');
+    for (var r = 0; r < rows.length; r++) rows[r].style.overflow = 'hidden';
+
+    var lgPortrait = !!document.querySelector('.screen--lg.screen--portrait');
+
+    var titles = root.querySelectorAll('.cal-fit-text:not(.cal-axis-text):not(.cal-allday-title)');
+    for (var i = 0; i < titles.length; i++) {
+      if (lgPortrait) titles[i].setAttribute('data-fit-max', '100');
+      fit(titles[i]);
+    }
+
+    var MIN_LEGIBLE_AXIS_BOX_PX = 10;
+
+    function fitSharedGroup(selector, maxOverride) {
+      var all = root.querySelectorAll(selector);
+      var els = [];
+      for (var i = 0; i < all.length; i++) {
+        var box = all[i].closest('.cal-fit-box');
+        if (!box || box.clientHeight <= 0) continue;
+        if (box.clientHeight < MIN_LEGIBLE_AXIS_BOX_PX) {
+          all[i].style.visibility = 'hidden';
+          var siblingPeriod = box.querySelector('.cal-axis-period');
+          if (siblingPeriod) siblingPeriod.style.visibility = 'hidden';
+          continue;
+        }
+        els.push(all[i]);
+      }
+      var minSize = null;
+      for (var j = 0; j < els.length; j++) {
+        if (maxOverride) els[j].setAttribute('data-fit-max', maxOverride);
+        var s = fit(els[j]);
+        if (s != null && (minSize === null || s < minSize)) minSize = s;
+      }
+      if (minSize !== null) {
+        for (var k = 0; k < els.length; k++) fit(els[k], minSize);
+      }
+    }
+    fitSharedGroup('.cal-axis-important', lgPortrait ? '48' : null);
+    fitSharedGroup('.cal-axis-text:not(.cal-axis-important)', lgPortrait ? '48' : null);
+    fitSharedGroup('.cal-allday-title', null);
+
+    var periodEls = root.querySelectorAll('.cal-axis-period');
+    for (var p = 0; p < periodEls.length; p++) {
+      var periodEl = periodEls[p];
+      var hourEl = periodEl.nextElementSibling;
+      if (!hourEl) continue;
+      var hourPx = parseFloat(hourEl.style.fontSize) || 16;
+      periodEl.style.fontSize = Math.round(hourPx * 0.72) + 'px';
+    }
+  }
+
+  function runAfterFonts() {
+    run();
+    setTimeout(run, 400);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(run).catch(run);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runAfterFonts);
+  } else {
+    runAfterFonts();
+  }
+})();
+</script>
+{% endtemplate %}
