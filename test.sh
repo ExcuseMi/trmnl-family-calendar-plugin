@@ -22,21 +22,12 @@ node run.js
 # CSS property names — a name written in a comment or in the template's own script costs a slot
 # just like a real style does. Running it here is what stops that creeping back.
 #
-# One known false positive is filtered out: trmnlp 0.12.0 does not recognise the lat_lon field
-# type, which TRMNL's own server does (settings.yml is synced from it, and the field drives
-# sunrise/sunset and weather on the device). Every other issue fails this script.
+# plugin/lint.sh rather than bare `trmnlp lint`: the gem's field_type list predates lat_lon, so
+# bare lint can never go green while the plugin has a Location field, and a check that always
+# fails is one everybody learns to ignore. The wrapper drops that single warning, fails on
+# everything else, and tells you to delete itself if settings.yml stops using the field.
 if command -v trmnlp >/dev/null 2>&1; then
-  cd "$ROOT/plugin/src"
-  echo "trmnlp lint"
-  lint_out=$(trmnlp lint 2>&1 || true)
-  echo "$lint_out"
-  real_issues=$(printf '%s\n' "$lint_out" | grep -E '^[[:space:]]+[0-9]+\.' | grep -v 'unknown field_type: lat_lon' || true)
-  if [ -n "$real_issues" ]; then
-    echo
-    echo "lint issues that are not the known trmnlp field_type gap:"
-    echo "$real_issues"
-    exit 1
-  fi
+  "$ROOT/plugin/lint.sh"
 else
   echo "SKIP: trmnlp is not on PATH, so its lint did not run"
 fi
