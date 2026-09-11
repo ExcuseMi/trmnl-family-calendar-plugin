@@ -10,7 +10,6 @@ const WD_MAP = { MO: 0, TU: 1, WE: 2, TH: 3, FR: 4, SA: 5, SU: 6 };
 const HUES = ["blue", "green", "orange", "purple", "red", "cyan", "pink", "lime", "violet", "yellow"];
 const GRAY_SHADES = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75];
 const BLACK_WHITE = ["black", "white"];
-const AUTO_HUES = GRAY_SHADES.map((n) => "gray-" + n);
 
 function isValidColor(v) {
   if (HUES.includes(v) || BLACK_WHITE.includes(v)) return true;
@@ -1409,7 +1408,7 @@ const ALERTS_ROW_PCT = 5;
 const READABLE_BOX_MIN_PCT = 4;
 function hueOf(calIdx, calendarColors) {
   if (calendarColors && calIdx < calendarColors.length && calendarColors[calIdx]) return calendarColors[calIdx];
-  return AUTO_HUES[calIdx % AUTO_HUES.length];
+  return HUES[calIdx % HUES.length];
 }
 
 function cluster(events) {
