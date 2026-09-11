@@ -344,7 +344,7 @@ async function run(input) {
         },
       };
     });
-  const agendaWeather = weatherTransitions((sky.hourlyWeather || {})[0])
+  const agendaWeather = weatherTransitions((sky.hourlyWeather || {})[0], coreStartH, coreEndH)
     .filter((m) => !nowIsKnown || m.h >= nowH)
     .map((m) => {
       const timeLabel = fmtTime(dayBounds[0].d0Epoch + m.h * 3600000, tz, is12h);
@@ -1235,7 +1235,16 @@ const WEATHER_MARKER_HUE = { storm: "purple", snow: "cyan", rain: "blue", fog: "
 // {hour: "rain"|"storm"|"snow"|"fog"} map segments use; a change straight from one condition to
 // another (e.g. rain into snow, with no clear hour between) emits both a "stops" and a "starts"
 // marker at that same hour.
-function weatherTransitions(dayWeather) {
+// A changeable day can produce a dozen of these, and on the full view's agenda columns they
+// crowd out the actual calendar: one Monday of real forecast data pushed every event off the
+// board behind "Fog starts 2:00", "Fog stops 4:00" and six more like them. So the day keeps at
+// most WEATHER_MARKER_CAP, and prefers the hours somebody is awake for (the visible window).
+// The remaining slots go to the nearest markers outside it, closest first, which is what keeps
+// "it has been storming since midnight" on a board whose day starts at 07:00 — the weather you
+// walk out into is worth a line even though it changed while you were asleep.
+const WEATHER_MARKER_CAP = 4;
+
+function weatherTransitions(dayWeather, windowStart, windowEnd) {
   const marks = [];
   let prevKind = null;
   for (let h = 0; h < 24; h++) {
@@ -1246,7 +1255,17 @@ function weatherTransitions(dayWeather) {
     }
     prevKind = kind;
   }
-  return marks;
+  if (marks.length <= WEATHER_MARKER_CAP) return marks;
+
+  const start = typeof windowStart === "number" ? windowStart : 0;
+  const end = typeof windowEnd === "number" ? windowEnd : 24;
+  const distance = (m) => (m.h < start ? start - m.h : (m.h >= end ? m.h - end + 1 : 0));
+  return marks
+    .map((m, i) => ({ m, i, d: distance(m) }))
+    .sort((a, b) => (a.d - b.d) || (a.i - b.i))
+    .slice(0, WEATHER_MARKER_CAP)
+    .sort((a, b) => a.i - b.i)
+    .map((x) => x.m);
 }
 
 function weatherMarkerItem(kind, starting, timeLabel, weatherI18n) {
@@ -1613,7 +1632,7 @@ function layoutNative(days, alldayBars, outerStart, outerEnd, coreStart, coreEnd
         },
       };
     });
-    const agendaWeather = weatherTransitions(dayWeather).map((m) => {
+    const agendaWeather = weatherTransitions(dayWeather, coreStart, coreEnd).map((m) => {
       // Matches real events' own "H:MM" time labels (fmtTime), not the bare axis-style hour
       // digit (hourRows[h].hour) — mixing "14" in among "10:00–10:30" etc. would look wrong.
       const hourDisplay = is12h ? m.h % 12 || 12 : m.h;

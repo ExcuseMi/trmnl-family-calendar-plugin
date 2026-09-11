@@ -172,7 +172,7 @@ function pinClock(transformPath) {
 // Async on purpose: the fixture feeds are served by this very process, and execFileSync would
 // block the event loop for the whole build — the server would never answer, and every calendar
 // would render as "Calendar unavailable" instead of the board the suite means to measure.
-async function buildViews(port) {
+async function buildViews(port, fullViewStyle) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'calendar-layout-'));
   fs.cpSync(SRC, path.join(dir, 'src'), { recursive: true });
   pinClock(path.join(dir, 'src/transform.js'));
@@ -184,7 +184,7 @@ async function buildViews(port) {
     urls,
     "  advanced_config_enabled: 'false'",
     "  view_days: '3'",
-    '  full_view_style: grid',
+    '  full_view_style: ' + fullViewStyle,
     '  lat_lon: ' + "''",
     '  temperature_unit: celsius',
     '  time_format: 24h',
@@ -257,6 +257,9 @@ function measureNow() {
   });
   if (counter) out.counter = { text: counter.textContent.trim(), box: box(counter.parentElement) };
 
+  // Width only. A [data-clamp] element is deliberately limited to N lines, which shows up as
+  // height overflow and is a design choice, not a defect; text cut off sideways is the one that
+  // means a title lost its ending to a "…".
   Array.prototype.forEach.call(document.querySelectorAll('.view *'), function (el) {
     if (el.children.length) return;
     var text = (el.textContent || '').trim();
@@ -376,10 +379,18 @@ async function main() {
   const server = await serveFixtures();
   const port = server.address().port;
   let buildDir;
+  let agendaDir;
   try {
-    buildDir = await buildViews(port);
+    buildDir = await buildViews(port, 'grid');
     const measured = {};
     for (const v of VIEWS) measured[v.name] = measure(buildDir, v);
+
+    // The full view has two user-selectable styles and they share almost no markup: the grid
+    // draws positioned chips, the agenda draws the same .item rows the small views use. Only
+    // measuring one of them leaves half the full view untested, which is how its all-day titles
+    // kept an ellipsis nobody saw.
+    agendaDir = await buildViews(port, 'agenda');
+    measured.full_agenda = measure(agendaDir, { name: 'full_agenda', file: 'full', slot: null });
 
     const helpers = { measured, assert, assertEqual, VIEWS };
     for (const file of fs.readdirSync(path.join(__dirname, 'cases')).sort()) {
@@ -403,8 +414,10 @@ async function main() {
   } finally {
     server.close();
     // CALENDAR_KEEP_BUILD leaves the rendered HTML on disk to open or measure by hand.
-    if (buildDir && process.env.CALENDAR_KEEP_BUILD) console.log('build kept at ' + buildDir);
-    else if (buildDir) fs.rmSync(buildDir, { recursive: true, force: true });
+    for (const dir of [buildDir, agendaDir]) {
+      if (dir && process.env.CALENDAR_KEEP_BUILD) console.log('build kept at ' + dir);
+      else if (dir) fs.rmSync(dir, { recursive: true, force: true });
+    }
   }
 }
 

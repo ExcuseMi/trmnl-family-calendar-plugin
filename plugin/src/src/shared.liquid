@@ -145,7 +145,18 @@
       {%- endcomment -%}
       <div class="w--full flex flex--row flex--center-y gap--small text--black px--2 {% if item.icon_url %}py--0.5{% else %}py--1{% endif %}" style="min-width:0;">
         {% if item.time %}<span class="label {{ time_cls | default: axis_cls }} text--black font--bold no-shrink" style="flex:0 0 auto;">{{ row_time }}</span>{% endif %}
-        <span class="title {{ event_title_cls }} text--black" style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.title }}</span>
+        {%- comment -%}
+          An all-day row in a view that wraps its titles (the full view's agenda columns, where
+          title_clamp is set) wraps too, rather than taking an ellipsis. It has no time label
+          beside it, so the only reason it was losing "Conference: TRMNL Summit" to a "…" was
+          that this branch is shared with the single-line small views. Those keep nowrap: there
+          a second line would cost a whole row of the few they have.
+        {%- endcomment -%}
+        {%- if title_clamp and title_clamp > 1 and item.all_day -%}
+          <span class="title {{ event_title_cls }} text--black" style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere;" data-clamp="{{ title_clamp }}">{{ item.title }}</span>
+        {%- else -%}
+          <span class="title {{ event_title_cls }} text--black" style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.title }}</span>
+        {%- endif -%}
         {% if item.icon_url %}<img src="{{ item.icon_url }}" class="w--[20px] h--[20px] no-shrink">{% endif %}
         {% if item.badges and item.badges.size > 0 %}
           <span class="flex flex--row gap--xsmall no-shrink" style="flex:0 0 auto;">
@@ -661,14 +672,27 @@
             {%- assign day_body_row_start = 2 -%}
             {%- if day_last_bar_row0 > -1 -%}{%- assign day_body_row_start = day_last_bar_row0 | plus: 3 -%}{%- endif -%}
           {%- endif -%}
-          <div class="col--span-{{ day_span }} flex flex--col gap--xsmall border--v-1 relative cal-day-cell p--1" data-day-idx="{{ day_idx }}" data-overflow="true" data-overflow-max-height="auto" data-overflow-counter="true" style="grid-row:{{ day_body_row_start }} / -1;overflow:hidden;box-sizing:border-box;">
-            {% for item in day.agenda %}
-              {%- render "agenda_row", item: item, axis_cls: axis_cls, event_title_cls: event_title_cls, title_clamp: 3, time_cls: "label--base lg:label--large" -%}
-            {% else %}
-              <div class="w--full h--full flex flex--center-x flex--center-y">
-                <span class="label {{ axis_cls }} text--gray-50">{{ data.nothing_scheduled_label }}</span>
-              </div>
-            {% endfor %}
+          {%- comment -%}
+            Two elements, and it has to be two. The list keeps the plain data-overflow engine
+            rather than the columns one the single-day views use: the columns engine sizes itself
+            from its following siblings, and in a grid row those are the OTHER day cells, so
+            every column but the last got a budget of zero and rendered empty.
+
+            The plain engine measures its container's PARENT content box, so the reserve for its
+            own "and N more" has to live on a parent it will actually read: the cell carries the
+            bottom padding, the inner div is the list. With the reserve on the list itself the
+            engine never saw it, kept one row too many, and put the counter on the footer.
+          {%- endcomment -%}
+          <div class="col--span-{{ day_span }} flex flex--col border--v-1 relative cal-day-cell px--1 pt--1 pb--6" data-day-idx="{{ day_idx }}" style="grid-row:{{ day_body_row_start }} / -1;overflow:hidden;box-sizing:border-box;">
+            <div class="flex flex--col gap--xsmall w--full" data-overflow="true" data-overflow-max-height="auto" data-overflow-counter="true" style="overflow:hidden;">
+              {% for item in day.agenda %}
+                {%- render "agenda_row", item: item, axis_cls: axis_cls, event_title_cls: event_title_cls, title_clamp: 3, time_cls: "label--base lg:label--large" -%}
+              {% else %}
+                <div class="w--full h--full flex flex--center-x flex--center-y">
+                  <span class="label {{ axis_cls }} text--gray-50">{{ data.nothing_scheduled_label }}</span>
+                </div>
+              {% endfor %}
+            </div>
           </div>
         {% endfor %}
       </div>

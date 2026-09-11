@@ -41,6 +41,61 @@ module.exports = function (test, h) {
     assertEqual(stop.time, '16:00', 'the stop marker should be labeled with the hour it stops (rain was at 14 and 15, clear again at 16)');
   });
 
+  // A changeable day emits a transition every time the code flips, and on the full view's agenda
+  // columns those crowded the real calendar off the board entirely.
+  function weatherJsonChangeable() {
+    const time = [];
+    const weathercode = [];
+    // rain 0-1, fog 2-4, clear 5-8, rain 9, clear 10, rain 11, clear after: eight transitions,
+    // five of them before anybody is awake.
+    for (let h = 0; h < 24; h++) {
+      time.push('2026-09-05T' + String(h).padStart(2, '0') + ':00');
+      let code = 0;
+      if (h < 2) code = 61;
+      else if (h < 5) code = 45; // fog
+      else if (h === 9 || h === 11) code = 61;
+      weathercode.push(code);
+    }
+    return {
+      daily: { sunrise: ['2026-09-05T06:00'], sunset: ['2026-09-05T20:00'], temperature_2m_max: [20], temperature_2m_min: [12] },
+      hourly: { time, weathercode },
+    };
+  }
+
+  test('a changeable day keeps at most four weather markers, preferring the hours somebody is awake for', async () => {
+    const fetchImpl = async (url) => {
+      if (url.includes('open-meteo')) return okJson(weatherJsonChangeable());
+      return okText(icsWithEvents([{ uid: 1, start: '20260905T100000Z', end: '20260905T103000Z', summary: 'Standup' }]));
+    };
+    const { run } = runTransform(fetchImpl, NOW);
+    const r = await run(baseInput({ calendars_simple: 'https://example.com/a.ics', lat_lon: '52.0,4.0', view_days: '1' }));
+    const marks = r.data.days[0].agenda.filter((i) => i.icon_url);
+    assert(marks.length <= 4, 'expected at most 4 markers, got ' + marks.length + ': ' + marks.map((m) => m.time + ' ' + m.title).join(', '));
+    const hours = marks.map((m) => parseInt(m.time, 10));
+    assert(hours.filter((hr) => hr >= 7 && hr <= 21).length >= 3,
+      'the kept markers should be the daytime ones, got: ' + marks.map((m) => m.time + ' ' + m.title).join(', '));
+  });
+
+  test('an overnight condition still gets a line when the day has room for it', async () => {
+    // Storm from midnight to 10:00, then snow to 14:00: four markers, so nothing is dropped and
+    // "it has been storming since midnight" survives even though it started while asleep.
+    const fetchImpl = async (url) => {
+      if (url.includes('open-meteo')) {
+        const time = [], weathercode = [];
+        for (let hr = 0; hr < 24; hr++) {
+          time.push('2026-09-05T' + String(hr).padStart(2, '0') + ':00');
+          weathercode.push(hr < 10 ? 96 : (hr < 14 ? 75 : 0));
+        }
+        return okJson({ daily: { sunrise: ['2026-09-05T06:00'], sunset: ['2026-09-05T20:00'], temperature_2m_max: [5], temperature_2m_min: [0] }, hourly: { time, weathercode } });
+      }
+      return okText(icsWithEvents([]));
+    };
+    const { run } = runTransform(fetchImpl, NOW);
+    const r = await run(baseInput({ calendars_simple: 'https://example.com/a.ics', lat_lon: '52.0,4.0', view_days: '1' }));
+    const marks = r.data.days[0].agenda.filter((i) => i.icon_url).map((i) => i.time + ' ' + i.title);
+    assertEqual(marks, ['0:00 Storm starts', '10:00 Storm stops', '10:00 Snow starts', '14:00 Snow stops']);
+  });
+
   test('data.single_day.agenda only includes still-upcoming weather markers, matching how it treats events', async () => {
     const fetchImpl = async (url) => {
       if (url.includes('open-meteo')) return okJson(weatherJsonWithRain());

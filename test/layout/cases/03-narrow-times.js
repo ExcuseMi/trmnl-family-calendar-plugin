@@ -2,7 +2,10 @@ module.exports = function (test, h) {
   const { measured, assert } = h;
 
   const RANGE = /^\d{1,2}:\d{2}-\d{1,2}:\d{2}\b/;
-  const START_ONLY = /^\d{1,2}:\d{2}\s+\S/;
+  // No whitespace requirement after the time: the gap between the time and the title is a CSS
+  // one (the row is a flex line with a gap), so the extracted text runs them together. What
+  // matters is that the label is one time and not a range.
+  const START_ONLY = /^\d{1,2}:\d{2}(?!\s*-\s*\d)/;
 
   // The single-day views drop the end of the time range so the title gets that width instead.
   // The fixture deliberately carries titles that do not fit one of these rows beside a full
