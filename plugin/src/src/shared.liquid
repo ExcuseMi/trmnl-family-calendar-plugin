@@ -494,9 +494,20 @@
         <div class="col--span-{{ axis_span }} cal-axis-col" style="display:grid;grid-template-rows:{{ axis_row_tracks | strip }};">
           {% for row in data.hour_rows %}
 
-            <div class="w--full flex flex--row {% if row.period %}gap--distribute{% else %}flex--right{% endif %} cal-row cal-fit-box relative pr--2 {% if row.current %}bg--black{% elsif row.shade == 1 %}bg--gray-65{% endif %}" data-hour-shade="{{ row.shade }}" data-hour-current="{{ row.current }}" {% if row.current %}style="border-top:1px solid #888888;"{% endif %}>
+            {%- comment -%}
+              The axis banded every other hour in gray, which is a dither pattern rather than a
+              tone on a 1-bit panel: a column of noise running down the side of the board. The
+              hour numbers and the grid's own rules carry the banding; only the current hour
+              still takes a fill, because that one is a statement.
 
+              An hour row can also be a few pixels tall once the out-of-core hours shrink, which
+              is shorter than the label's own line, and printing a number there just overlaps its
+              neighbours. Below that height the hour goes unlabelled.
+            {%- endcomment -%}
+            <div class="w--full flex flex--row {% if row.period %}gap--distribute{% else %}flex--right{% endif %} cal-row cal-fit-box relative pr--2 {% if row.current %}bg--black{% endif %}" data-hour-shade="{{ row.shade }}" data-hour-current="{{ row.current }}" {% if row.current %}style="border-top:1px solid #888888;"{% endif %}>
+              {% if row.pct >= 2.4 %}
                 {% if row.period %}<span class="cal-axis-period {% if row.current %}text--gray-70{% else %}text--gray-15{% endif %} ml--1 mr--1">{{ row.period }}</span>{% endif %}<span class="label {{ axis_cls }} {% if row.bold %}font--bold {% endif %}{% if row.current %}text--white {% endif %}cal-fit-text cal-axis-text{% if row.important %} cal-axis-important{% endif %} inline-block text--right hours" data-fit-min="8" data-fit-max="40">{{ row.hour }}</span>
+              {% endif %}
             </div>
           {% endfor %}
         </div>
@@ -513,24 +524,28 @@
 
             {% assign seg_cum_pct = 0 %}
             {% for seg in day.segments %}
+              {%- comment -%}
+                Hour banding used to be a light gray on every other hour, on top of a gray fill
+                for any day that is not today. On the 1-bit panels most TRMNLs are, a light gray
+                is not a tone, it is a dither pattern: the grid read as noise with the events
+                floating in it, and the two grays were nearly indistinguishable anyway. Daytime
+                hours are plain white now and the banding is carried by a hairline rule per hour,
+                which stays a line at any bit depth. Night keeps its solid dark fill and today's
+                elapsed hours keep one light fill, because those two say something a rule cannot.
+              {%- endcomment -%}
               {% if seg.night %}
 
                 {% assign seg_bg = "bg--gray-30" %}
               {% elsif day.is_today and seg.past %}
 
                 {% assign seg_bg = "bg--gray-75" %}
-                {% if seg.shade == 1 %}{% assign seg_bg = "bg--gray-70" %}{% endif %}
-              {% elsif day.is_today %}
-                {% assign seg_bg = "" %}
-                {% if seg.shade == 1 %}{% assign seg_bg = "bg--gray-75" %}{% endif %}
               {% else %}
-                {% assign seg_bg = "bg--gray-75" %}
-                {% if seg.shade == 1 %}{% assign seg_bg = "bg--gray-70" %}{% endif %}
+                {% assign seg_bg = "" %}
               {% endif %}
               {%- assign seg_pct_of_cell = seg.pct | times: 100.0 | divided_by: grid_pct -%}
-              <div class="w--full cal-row {{ seg_bg }} relative" style="height:{{ seg_pct_of_cell }}%;{% if seg.night %}border-bottom:1px solid rgba(255,255,255,0.2);{% endif %}">
+              <div class="w--full cal-row {{ seg_bg }} relative" style="height:{{ seg_pct_of_cell }}%;{% if seg.night %}border-bottom:1px solid rgba(255,255,255,0.2);{% else %}border-top:1px solid #999999;{% endif %}">
                 {% if seg.weather == "rain" %}
-                  <div class="absolute inset--0" style="background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2714%27 height=%2714%27 viewBox=%270 0 14 14%27%3E%3Cg stroke=%27%23888888%27 stroke-width=%271.6%27 stroke-linecap=%27round%27%3E%3Cline x1=%2711%27 y1=%271%27 x2=%278%27 y2=%277%27/%3E%3Cline x1=%274%27 y1=%278%27 x2=%271%27 y2=%2714%27/%3E%3C/g%3E%3C/svg%3E');image-rendering:-moz-crisp-edges;image-rendering:pixelated;background-position:0 -{{ seg_cum_pct }}cqh;"></div>
+                  <div class="absolute inset--0" style="background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2722%27 height=%2722%27 viewBox=%270 0 22 22%27%3E%3Cg stroke=%27%23888888%27 stroke-width=%271.6%27 stroke-linecap=%27round%27%3E%3Cline x1=%2711%27 y1=%271%27 x2=%278%27 y2=%277%27/%3E%3Cline x1=%274%27 y1=%278%27 x2=%271%27 y2=%2714%27/%3E%3C/g%3E%3C/svg%3E');image-rendering:-moz-crisp-edges;image-rendering:pixelated;background-position:0 -{{ seg_cum_pct }}cqh;"></div>
                 {% elsif seg.weather == "storm" %}
                   <div class="absolute inset--0" style="background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2728%27 height=%2728%27 viewBox=%270 0 28 28%27%3E%3Cpath fill=%27%23555555%27 d=%27M6 2c-1.8 2.4-3 4.5-3 6.1 0 2.1 1.3 3.9 3 3.9s3-1.8 3-3.9C9 6.5 7.8 4.4 6 2z%27 transform=%27rotate(15 6 6)%27/%3E%3Cpath fill=%27%23555555%27 d=%27M20 2c-1.8 2.4-3 4.5-3 6.1 0 2.1 1.3 3.9 3 3.9s3-1.8 3-3.9C23 6.5 21.8 4.4 20 2z%27 transform=%27rotate(15 20 6)%27/%3E%3Cpath fill=%27%23555555%27 d=%27M13 14c-1.8 2.4-3 4.5-3 6.1 0 2.1 1.3 3.9 3 3.9s3-1.8 3-3.9c0-1.6-1.2-3.7-3-6.1z%27 transform=%27rotate(15 13 18)%27/%3E%3C/svg%3E');image-rendering:-moz-crisp-edges;image-rendering:pixelated;background-position:0 -{{ seg_cum_pct }}cqh;"></div>
                 {% elsif seg.weather == "snow" %}

@@ -241,6 +241,26 @@ function measureNow() {
     });
   });
 
+  // The timeline grid's hour axis: one row per hour, the label only where the row is tall
+  // enough to hold one, and no banding fill (a light gray is a dither pattern on a 1-bit panel).
+  out.axisRows = [];
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hour-shade]'), function (el) {
+    if (!visible(el)) return;
+    var label = el.querySelector('.hours');
+    // Both of these matter. On a 1-bit screen the framework paints a gray as a dither IMAGE and
+    // leaves background-color transparent, so a check on the colour alone sees nothing: the
+    // banding this suite is meant to catch went straight past it.
+    var cs = getComputedStyle(el);
+    out.axisRows.push({
+      box: box(el), text: (el.textContent || '').trim(),
+      labelBox: label && visible(label) ? box(label) : null,
+      bg: cs.backgroundColor,
+      bgImage: cs.backgroundImage && cs.backgroundImage !== 'none' ? 'image' : '',
+      bgClass: (String(el.className).match(/bg--[a-z0-9-]+/) || [''])[0],
+      current: el.getAttribute('data-hour-current') === 'true'
+    });
+  });
+
   out.chips = [];
   Array.prototype.forEach.call(document.querySelectorAll('.cal-chip'), function (el) {
     if (!visible(el)) return;

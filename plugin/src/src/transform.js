@@ -1469,7 +1469,13 @@ function round4(x) {
   return Math.round(x * 10000) / 10000;
 }
 
-const EXTENSION_WEIGHT = 0.8;
+// How much height an hour outside the core window gets, against 1 for an hour inside it. The
+// window stretches to cover any real event, so a single evening thing that ends at midnight used
+// to drag the whole night onto the board: at 0.8 those hours are nearly as tall as the ones with
+// the day's actual content in them, and on an 800x480 panel that was about 40% of the grid spent
+// on hours where nothing happens. They still have to be legible — an event out there is exactly
+// why the window stretched — so they shrink rather than collapse.
+const EXTENSION_WEIGHT = 0.35;
 
 function layoutNative(days, alldayBars, outerStart, outerEnd, coreStart, coreEnd, nowH, sunMarks, hourlyWeather, calendarColors, headerPct, is12h, newsPct, alertsPct, weatherI18n) {
   outerStart = Math.max(0, Math.min(23, Math.trunc(outerStart)));
