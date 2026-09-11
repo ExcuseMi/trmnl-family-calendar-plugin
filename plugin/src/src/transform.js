@@ -194,6 +194,10 @@ async function run(input) {
         hueOverride: e.hueOverride,
         personBadges: e.personBadges,
         label: fmtTime(vs, tz, is12h) + "-" + fmtTime(ve, tz, is12h),
+        // Start alone, for the narrow views: a full range costs about half an agenda row's
+        // width on a quadrant or a half_vertical, which is what forced real titles into an
+        // ellipsis there. Wider views keep the range.
+        labelStart: fmtTime(vs, tz, is12h),
       });
     }
     timed.sort((a, b) => a.h0 - b.h0);
@@ -333,7 +337,7 @@ async function run(input) {
       return {
         sortH: e.h0,
         item: {
-          time: e.label, title: e.title,
+          time: e.label, time_short: e.labelStart, title: e.title,
           hue: colorClass(color), fg: foregroundFor(color),
           current: nowIsKnown && e.h0 <= nowH && e.h1 > nowH,
           badges: e.personBadges || [],
@@ -1602,7 +1606,7 @@ function layoutNative(days, alldayBars, outerStart, outerEnd, coreStart, coreEnd
       return {
         sortH: ev.h0,
         item: {
-          time: ev.label, title: ev.title,
+          time: ev.label, time_short: ev.labelStart, title: ev.title,
           hue: colorClass(color), fg: foregroundFor(color),
           current: hasNow && ev.h0 <= nowH && ev.h1 > nowH,
           badges: ev.personBadges || [],

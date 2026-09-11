@@ -53,7 +53,12 @@
 {% endtemplate %}
 
 {% template chip %}
-  <div class="{{ size_class }} bg--white w--full flex flex--row {{ radius_cls }} relative" style="overflow:hidden;box-sizing:border-box;{{ size_style }}border:2px solid #000000;box-shadow:2px 2px 0 0 #000000;">
+  {%- comment -%}
+    cal-chip is a hook for the rendered-layout suite (test/layout), which has to be able to find
+    the timeline grid's event boxes: they are not .item rows like the agenda lists, so without a
+    class of their own every assertion about the full view passes by matching nothing.
+  {%- endcomment -%}
+  <div class="cal-chip {{ size_class }} bg--white w--full flex flex--row {{ radius_cls }} relative" style="overflow:hidden;box-sizing:border-box;{{ size_style }}border:2px solid #000000;box-shadow:2px 2px 0 0 #000000;">
     <div class="bg--{{ hue }} no-shrink" style="width:5px;align-self:stretch;"></div>
     <div class="w--full h--full flex {{ flex_dir }} flex--center-y cal-fit-box {{ pad_cls }} w--min-0">
       {%- render "chip_body", title: title, fit_min: fit_min, clip: clip, pad_x_cls: pad_x_cls -%}
@@ -69,8 +74,14 @@
   legible on-device, so it's applied here too rather than relying on bg/text contrast alone.
 {%- endcomment -%}
 {% template agenda_row %}
-  {%- assign row_border_color = "currentColor" -%}
-  {%- if item.fg == "white" -%}{%- assign row_border_color = "#888888" -%}{%- endif -%}
+  {%- comment -%}
+    The row is a white card with the event's colour as a left accent bar, not a card filled with
+    that colour. Most TRMNL panels are 1-bit: a filled hue is not a colour there, it is a dither
+    pattern, and these rows put their text straight on top of it, which is what made the agenda
+    views look noisy and hard to read. The full view's timeline chips already made this trade
+    (see the chip template above) and this brings the lists in line with them: black on white
+    always reads, and the accent bar still colour-codes the row at a glance.
+  {%- endcomment -%}
   {%- comment -%}
     Badge size is keyed off title_clamp (full-view rows) rather than the layout branch below, so
     an all-day item — routed to the single-line branch regardless of title_clamp — still gets the
@@ -87,7 +98,15 @@
   {%- endcomment -%}
   {%- assign row_border_width = "2px" -%}
   {%- if item.current -%}{%- assign row_border_width = "4px" -%}{%- endif -%}
-  <div class="item w--full bg--{{ item.hue }} rounded--xsmall relative" style="overflow:hidden;flex-shrink:0;border:{{ row_border_width }} solid {{ row_border_color }};box-shadow:2px 2px 0 0 {{ row_border_color }};">
+  {%- comment -%}
+    Narrow views ask for the start time only (short_time): the end of the range is the half of
+    the label a reader can most afford to lose, and giving that width back to the title is the
+    difference between "Client workshop: onboardin..." and the whole thing.
+  {%- endcomment -%}
+  {%- assign row_time = item.time -%}
+  {%- if short_time and item.time_short -%}{%- assign row_time = item.time_short -%}{%- endif -%}
+  <div class="item w--full bg--white rounded--xsmall relative flex flex--row" style="overflow:hidden;flex-shrink:0;border:{{ row_border_width }} solid #000000;box-shadow:2px 2px 0 0 #000000;">
+    <div class="bg--{{ item.hue }} no-shrink" style="width:6px;align-self:stretch;"></div>
     {%- comment -%}
       Weather markers (item.icon_url) and all-day items (item.all_day) always use the compact
       single-line layout below, even in the full view — their titles never need to wrap ("Rain
@@ -101,10 +120,10 @@
         own line(s) — requested specifically for the full view's narrower columns, where titles
         need real width to wrap into rather than competing with the time for horizontal space.
       {%- endcomment -%}
-      <div class="w--full flex flex--col gap--xsmall text--{{ item.fg }} px--2 py--1" style="min-width:0;">
+      <div class="w--full flex flex--col gap--xsmall text--black px--2 py--1" style="min-width:0;">
         <div class="w--full flex flex--row flex--center-y gap--small" style="min-width:0;">
-          {% if item.time %}<span class="label {{ time_cls | default: axis_cls }} text--{{ item.fg }} font--bold no-shrink" style="flex:0 0 auto;">{{ item.time }}</span>{% endif %}
-          {% if item.icon_url %}<img src="{{ item.icon_url }}" class="w--[20px] h--[20px] no-shrink" style="margin-left:auto;{% if item.fg == 'white' %}filter:invert(1);{% endif %}">{% endif %}
+          {% if item.time %}<span class="label {{ time_cls | default: axis_cls }} text--black font--bold no-shrink" style="flex:0 0 auto;">{{ row_time }}</span>{% endif %}
+          {% if item.icon_url %}<img src="{{ item.icon_url }}" class="w--[20px] h--[20px] no-shrink" style="margin-left:auto;">{% endif %}
           {% if item.badges and item.badges.size > 0 %}
             <span class="flex flex--row gap--small no-shrink" style="flex:0 0 auto;{% unless item.icon_url %}margin-left:auto;{% endunless %}">
               {% for badge in item.badges limit: 2 %}
@@ -113,17 +132,17 @@
             </span>
           {% endif %}
         </div>
-        <span class="title {{ event_title_cls }} text--{{ item.fg }} text--left w--full block" style="min-width:0;overflow-wrap:anywhere;" data-clamp="{{ title_clamp }}">{{ item.title }}</span>
+        <span class="title {{ event_title_cls }} text--black text--left w--full block" style="min-width:0;overflow-wrap:anywhere;" data-clamp="{{ title_clamp }}">{{ item.title }}</span>
       </div>
     {%- else -%}
       {%- comment -%}
         Weather markers get slightly less vertical padding (py--0.5 vs py--1) — a quick "rain
         starts/stops" note doesn't need the same visual weight as a real calendar event.
       {%- endcomment -%}
-      <div class="w--full flex flex--row flex--center-y gap--small text--{{ item.fg }} px--2 {% if item.icon_url %}py--0.5{% else %}py--1{% endif %}" style="min-width:0;">
-        {% if item.time %}<span class="label {{ time_cls | default: axis_cls }} text--{{ item.fg }} font--bold no-shrink" style="flex:0 0 auto;">{{ item.time }}</span>{% endif %}
-        <span class="title {{ event_title_cls }} text--{{ item.fg }}" style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.title }}</span>
-        {% if item.icon_url %}<img src="{{ item.icon_url }}" class="w--[20px] h--[20px] no-shrink"{% if item.fg == 'white' %} style="filter:invert(1);"{% endif %}>{% endif %}
+      <div class="w--full flex flex--row flex--center-y gap--small text--black px--2 {% if item.icon_url %}py--0.5{% else %}py--1{% endif %}" style="min-width:0;">
+        {% if item.time %}<span class="label {{ time_cls | default: axis_cls }} text--black font--bold no-shrink" style="flex:0 0 auto;">{{ row_time }}</span>{% endif %}
+        <span class="title {{ event_title_cls }} text--black" style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.title }}</span>
+        {% if item.icon_url %}<img src="{{ item.icon_url }}" class="w--[20px] h--[20px] no-shrink">{% endif %}
         {% if item.badges and item.badges.size > 0 %}
           <span class="flex flex--row gap--xsmall no-shrink" style="flex:0 0 auto;">
             {% for badge in item.badges limit: 2 %}
@@ -249,6 +268,18 @@
   {%- assign allday_max_rows = 0 -%}
 {%- endif -%}
 {%- assign grid_pct = data.grid_pct | plus: data.allday_pct | minus: allday_pct -%}
+
+{%- comment -%}
+  The footer is a percentage of a container that is only 225px tall in a quadrant or a
+  half_horizontal, where 7% is 14px: less than the height of the ticker's own text, which then
+  painted over the agenda above it. A pixel floor (min-height on the bar itself) keeps the bar at
+  least as tall as its text in the small slots, and the percentage still governs the full view,
+  where 7% is already comfortably taller than the floor. The single-day views give back the few
+  percent that floor can cost them, so header + list + footer still fit inside the slot.
+{%- endcomment -%}
+{%- if view != 1 -%}
+  {%- assign grid_pct = grid_pct | minus: 5 -%}
+{%- endif -%}
 
 <div class="layout layout--col gap--none relative" id="cal-root" data-days-n="{{ shown_days_n }}" data-axis-span="{{ axis_span }}">
   {% if data.error and data.has_events == false %}
@@ -408,25 +439,33 @@
         and hides/counts on its own. half_horizontal additionally gets 2 columns (it has roughly
         twice the usable width of the other two).
       {%- endcomment -%}
-      {%- if view == 2 -%}
-        <div class="columns w--full h--[{{ grid_pct }}cqh] h--min-[{{ grid_pct }}cqh] flex-none p--2" data-overflow-max-cols="2" data-overflow-counter="true" style="box-sizing:border-box;">
+      {%- comment -%}
+        Every single-day view uses the columns engine, half_horizontal with two columns and the
+        two narrow views with one. The plain data-overflow list the narrow views used before
+        counted its rows against the container but then appended its "and N more" past the
+        bottom edge, on top of the footer, and on half_vertical it kept one row too many, which
+        the footer then sat on. The columns engine keeps its counter inside the box it measured.
+        overflow:hidden is the backstop so nothing can paint over the footer regardless.
+      {%- endcomment -%}
+      {%- if view == 2 -%}{%- assign agenda_cols = 2 -%}{%- else -%}{%- assign agenda_cols = 1 -%}{%- endif -%}
+        <div class="columns w--full h--[{{ grid_pct }}cqh] h--min-[{{ grid_pct }}cqh] flex-none px--2 pt--2 pb--2" data-overflow-max-cols="{{ agenda_cols }}" data-overflow-counter="true" style="box-sizing:border-box;overflow:hidden;">
           <div class="column gap--xsmall">
-      {%- else -%}
-        <div class="flex flex--col gap--xsmall w--full h--[{{ grid_pct }}cqh] h--min-[{{ grid_pct }}cqh] flex-none p--2" data-overflow="true" data-overflow-max-height="auto" data-overflow-counter="true" style="box-sizing:border-box;">
-      {%- endif -%}
+        {%- comment -%}
+          Every single-day view is narrow once its own columns are counted: half_horizontal
+          splits its width in two, so its rows are 367px, slightly NARROWER than half_vertical's
+          385px. They all show the start time only; the full view's agenda keeps the range,
+          because there the time sits on its own line above the title and costs it nothing.
+        {%- endcomment -%}
+        {%- assign agenda_short_time = true -%}
         {% for item in data.single_day.agenda %}
-          {%- render "agenda_row", item: item, axis_cls: axis_cls, event_title_cls: event_title_cls -%}
+          {%- render "agenda_row", item: item, axis_cls: axis_cls, event_title_cls: event_title_cls, short_time: agenda_short_time -%}
         {% else %}
           <div class="w--full h--full flex flex--center-x flex--center-y">
             <span class="label {{ axis_cls }} text--gray-50">{{ data.nothing_scheduled_label }}</span>
           </div>
         {% endfor %}
-      {%- if view == 2 -%}
           </div>
         </div>
-      {%- else -%}
-        </div>
-      {%- endif -%}
     {%- else -%}
     {%- if data.full_view_grid -%}
       {%- comment -%}
@@ -632,10 +671,10 @@
     {%- endif -%}
     {%- endif -%}
 
-    <div class="grid gap--none h--[{{ data.footer_pct }}cqh] h--min-[{{ data.footer_pct }}cqh] bg--black flex flex--center-y" style="overflow:hidden;">
+    <div class="grid gap--none h--[{{ data.footer_pct }}cqh] h--min-[{{ data.footer_pct }}cqh] bg--black flex flex--center-y" style="overflow:hidden;min-height:24px;">
       {% if data.rss_headline %}
         <div class="h--full col--span-{{ shown_days_n | times: day_span | plus: axis_span }} flex flex--row flex--center-y flex--left pl--2 pr--2 w--min-0" style="overflow:hidden;">
-          <span class="label {% if view == 1 %}label--large lg:label--xlarge{% else %}label--base{% endif %} font--bold bg--black text--white w--min-0 w--full block" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:0.5px;">{%- if data.rss_headline.label -%}<span class="text--gray-50">{{ data.rss_headline.label }}</span><span class="text--gray-50">&nbsp;»&nbsp;</span>{%- endif -%}{%- for t in data.rss_headline.titles -%}{{ t }}{%- unless forloop.last -%}<span class="text--gray-50">&nbsp;•&nbsp;</span>{%- endunless -%}{%- endfor -%}</span>
+          <span class="label {% if view == 1 %}label--large lg:label--xlarge{% elsif view == 3 or view == 4 %}label--small{% else %}label--base{% endif %} font--bold bg--black text--white w--min-0 w--full block" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:0.5px;">{%- if data.rss_headline.label -%}<span class="text--gray-50">{{ data.rss_headline.label }}</span><span class="text--gray-50">&nbsp;»&nbsp;</span>{%- endif -%}{%- for t in data.rss_headline.titles -%}{{ t }}{%- unless forloop.last -%}<span class="text--gray-50">&nbsp;•&nbsp;</span>{%- endunless -%}{%- endfor -%}</span>
         </div>
       {% else %}
       {% if axis_span > 0 %}
