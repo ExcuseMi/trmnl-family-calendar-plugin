@@ -1,12 +1,19 @@
 module.exports = function (test, h) {
   const { measured, assert } = h;
 
-  const SINGLE_DAY = ['half_horizontal', 'half_vertical', 'quadrant'];
+  // How many rows each slot is expected to carry, with a fixture that deliberately has more
+  // events than any of them can show. These are floors, not exact counts: they exist so that a
+  // change which quietly costs a slot a row (a taller row, a bigger footer, a percentage taken
+  // off the list) shows up here rather than on somebody's wall. half_vertical's is the one with
+  // history — it was 6 while it was paying for a footer floor that only the short slots owe.
+  const MIN_ROWS = { half_horizontal: 6, half_vertical: 8, quadrant: 3 };
+  const SINGLE_DAY = Object.keys(MIN_ROWS);
 
   for (const name of SINGLE_DAY) {
     test(name + ': shows the day as a list of rows, not a single chip', () => {
       const m = measured[name];
-      assert(m.rows.length >= 3, 'expected at least 3 agenda rows, got ' + m.rows.length);
+      assert(m.rows.length >= MIN_ROWS[name],
+        'expected at least ' + MIN_ROWS[name] + ' agenda rows, got ' + m.rows.length);
     });
 
     // A filled hue is not a colour on a 1-bit panel, it is a dither pattern, and a row that puts

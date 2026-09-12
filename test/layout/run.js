@@ -109,11 +109,18 @@ function fixtureIcs() {
       + ev('e2', 'Client workshop: onboarding flow', t(0, '1200'), t(0, '1330'))
       + ev('e3', 'Yoga at the community centre', t(0, '1500'), t(0, '1630'))
       + ev('e4', 'Five-a-side football', t(0, '1800'), t(0, '2000'))),
+    // Deliberately more events than the tallest slot can show: every view has to make a real
+    // decision about what fits, which is the thing being measured. A fixture that fits
+    // everywhere tests nothing about density or the "and N more" counter.
     'two.ics': cal('Work',
       ev('f1', 'Daily standup', t(0, '0700'), t(0, '0715'))
       + ev('f2', 'Design review', t(0, '0730'), t(0, '0830'))
       + ev('f3', 'Lunch with Priya', t(0, '1030'), t(0, '1115'))
       + ev('f4', 'Piano lesson', t(0, '1330'), t(0, '1415'))
+      + ev('f6', 'Pick up parcel', t(0, '1615'), t(0, '1630'))
+      + ev('f7', 'Call with the landlord', t(0, '1700'), t(0, '1730'))
+      + ev('f8', 'Swimming lesson', t(0, '1730'), t(0, '1815'))
+      + ev('f9', 'Dinner with Sam and Alex', t(0, '1900'), t(0, '2030'))
       + allDay('f5', 'Conference: TRMNL Summit', ymd(1), ymd(3))),
   };
 }

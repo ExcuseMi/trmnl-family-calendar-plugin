@@ -143,7 +143,14 @@
         Weather markers get slightly less vertical space (py--0.5 vs py--1) — a quick "rain
         starts/stops" note doesn't need the same visual weight as a real calendar event.
       {%- endcomment -%}
-      <div class="w--full flex flex--row flex--center-y gap--small text--black px--2 {% if item.icon_url %}py--0.5{% else %}py--1{% endif %}" style="min-width:0;">
+      {%- comment -%}
+        dense: the two 240px-tall slots (quadrant and half_horizontal) are short enough that a
+        row's vertical padding decides whether a whole event is shown or counted in "and N more".
+        At py--1 a quadrant fit three rows of a seven-event day with 27px left over, which is
+        most of a fourth. half_vertical is twice as tall and does not need it, so it keeps the
+        roomier row.
+      {%- endcomment -%}
+      <div class="w--full flex flex--row flex--center-y gap--small text--black px--2 {% if item.icon_url or dense %}py--0.5{% else %}py--1{% endif %}" style="min-width:0;">
         {% if item.time %}<span class="label {{ time_cls | default: axis_cls }} text--black font--bold no-shrink" style="flex:0 0 auto;">{{ row_time }}</span>{% endif %}
         {%- comment -%}
           An all-day row in a view that wraps its titles (the full view's agenda columns, where
@@ -292,7 +299,13 @@
   where 7% is already comfortably taller than the floor. The single-day views give back the few
   percent that floor can cost them, so header + list + footer still fit inside the slot.
 {%- endcomment -%}
-{%- if view != 1 -%}
+{%- comment -%}
+  Only the two 240px-tall slots pay for the footer's pixel floor. There 7% is about 15px against
+  a 24px floor, so the list has to give those points back or the footer is pushed off the slot.
+  half_vertical is 460px tall, where 7% is already past the floor: taking the same points off it
+  was just lost space, about a row's worth.
+{%- endcomment -%}
+{%- if view == 2 or view == 4 -%}
   {%- assign grid_pct = grid_pct | minus: 5 -%}
 {%- endif -%}
 
@@ -463,7 +476,13 @@
         overflow:hidden is the backstop so nothing can paint over the footer regardless.
       {%- endcomment -%}
       {%- if view == 2 -%}{%- assign agenda_cols = 2 -%}{%- else -%}{%- assign agenda_cols = 1 -%}{%- endif -%}
-        <div class="columns w--full h--[{{ grid_pct }}cqh] h--min-[{{ grid_pct }}cqh] flex-none px--2 pt--2 pb--2" data-overflow-max-cols="{{ agenda_cols }}" data-overflow-counter="true" style="box-sizing:border-box;overflow:hidden;">
+      {%- comment -%}
+        The short slots trade some outer padding for content. It buys less than it looks: the
+        overflow engine's budget comes from the parent box, not from this element's padding, so
+        trimming here moves the rows up rather than fitting another one.
+      {%- endcomment -%}
+      {%- if view == 2 or view == 4 -%}{%- assign agenda_pad = "px--2 pt--1 pb--1" -%}{%- else -%}{%- assign agenda_pad = "px--2 pt--2 pb--2" -%}{%- endif -%}
+        <div class="columns w--full h--[{{ grid_pct }}cqh] h--min-[{{ grid_pct }}cqh] flex-none {{ agenda_pad }}" data-overflow-max-cols="{{ agenda_cols }}" data-overflow-counter="true" style="box-sizing:border-box;overflow:hidden;">
           <div class="column gap--xsmall">
         {%- comment -%}
           Every single-day view is narrow once its own columns are counted: half_horizontal
@@ -472,8 +491,9 @@
           because there the time sits on its own line above the title and costs it nothing.
         {%- endcomment -%}
         {%- assign agenda_short_time = true -%}
+        {%- if view == 2 or view == 4 -%}{%- assign agenda_dense = true -%}{%- else -%}{%- assign agenda_dense = false -%}{%- endif -%}
         {% for item in data.single_day.agenda %}
-          {%- render "agenda_row", item: item, axis_cls: axis_cls, event_title_cls: event_title_cls, short_time: agenda_short_time -%}
+          {%- render "agenda_row", item: item, axis_cls: axis_cls, event_title_cls: event_title_cls, short_time: agenda_short_time, dense: agenda_dense -%}
         {% else %}
           <div class="w--full h--full flex flex--center-x flex--center-y">
             <span class="label {{ axis_cls }} text--gray-50">{{ data.nothing_scheduled_label }}</span>
